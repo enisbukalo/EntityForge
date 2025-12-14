@@ -27,7 +27,7 @@ static constexpr float PIXELS_PER_METER = 100.0f;
 static constexpr float PLAYFIELD_WIDTH_METERS  = SCREEN_WIDTH / PIXELS_PER_METER;
 static constexpr float PLAYFIELD_HEIGHT_METERS = SCREEN_HEIGHT / PIXELS_PER_METER;
 
-static constexpr size_t DEFAULT_BARREL_COUNT = 20;
+static constexpr size_t DEFAULT_BARREL_COUNT = 200;
 
 static Entity createAudioManager(World& world)
 {
@@ -41,7 +41,7 @@ static Entity createBarrelSpawner(World& world)
 {
     Entity spawner = world.createEntity();
     auto*  script  = world.components().add<Components::CNativeScript>(spawner);
-    script->bind<Example::BarrelSpawner>(0.0f, PLAYFIELD_WIDTH_METERS, 0.0f, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
+    script->bind<Example::BarrelSpawner>(-PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
     return spawner;
 }
 
