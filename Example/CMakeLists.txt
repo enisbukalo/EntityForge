@@ -24,12 +24,6 @@ endif()
 
 # Note: CMAKE_PREFIX_PATH and GameEngine_DIR are set by the build script
 
-# Find SFML (required by GameEngine)
-find_package(SFML 2.6 REQUIRED COMPONENTS graphics window system audio)
-
-# Find OpenGL (required by ImGui-SFML)
-find_package(OpenGL REQUIRED)
-
 # Find GameEngine package
 find_package(GameEngine REQUIRED)
 
@@ -44,11 +38,6 @@ add_executable(FishingGame ${SOURCES} ${HEADERS})
 target_link_libraries(FishingGame
     PRIVATE
     GameEngine::GameEngine
-    sfml-graphics
-    sfml-window
-    sfml-system
-    sfml-audio
-    OpenGL::GL
 )
 
 # Set target properties
@@ -121,5 +110,4 @@ endif()
 message(STATUS "Example Game Configuration:")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  GameEngine Dir: ${GameEngine_DIR}")
-message(STATUS "  SFML Version: ${SFML_VERSION}")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")

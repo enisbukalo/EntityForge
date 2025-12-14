@@ -4,6 +4,7 @@
 #include <World.h>
 
 #include <CNativeScript.h>
+#include <CCollider2D.h>
 #include <CPhysicsBody2D.h>
 #include <CTransform.h>
 #include <S2DPhysics.h>
@@ -220,6 +221,103 @@ TEST(S2DPhysicsRegressionTest, FixedUpdateCallbackRegisteredBeforeBodyExistsRuns
     // Second fixed step: body exists (created during previous update), so callback should run.
     physics.fixedUpdate(physics.getTimeStep(), world);
     EXPECT_EQ(callbackCalls, 1);
+}
+
+namespace
+{
+std::vector<uint64_t> getShapeIds(b2BodyId bodyId)
+{
+    const int shapeCount = b2Body_GetShapeCount(bodyId);
+    std::vector<b2ShapeId> shapes(static_cast<size_t>(std::max(0, shapeCount)));
+    if (shapeCount > 0)
+    {
+        const int got = b2Body_GetShapes(bodyId, shapes.data(), shapeCount);
+        shapes.resize(static_cast<size_t>(std::max(0, got)));
+    }
+
+    std::vector<uint64_t> out;
+    out.reserve(shapes.size());
+    for (const b2ShapeId s : shapes)
+    {
+        out.push_back(b2StoreShapeId(s));
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+}
+
+TEST(S2DPhysicsRegressionTest, ShapesAreNotRebuiltWhenColliderUnchanged)
+{
+    World world;
+
+    Entity e = world.createEntity();
+
+    auto* t = world.add<Components::CTransform>(e);
+    ASSERT_NE(t, nullptr);
+    t->position = {0.0f, 2.0f};
+
+    auto* body = world.add<Components::CPhysicsBody2D>(e);
+    ASSERT_NE(body, nullptr);
+    body->bodyType = Components::BodyType::Dynamic;
+
+    auto* collider = world.add<Components::CCollider2D>(e);
+    ASSERT_NE(collider, nullptr);
+    collider->density     = 1.0f;
+    collider->friction    = 0.3f;
+    collider->restitution = 0.0f;
+    collider->createPolygon({Vec2{-0.5f, -0.2f}, Vec2{0.5f, -0.2f}, Vec2{0.6f, 0.2f}, Vec2{-0.4f, 0.3f}}, 0.02f);
+
+    Systems::S2DPhysics physics;
+
+    physics.fixedUpdate(physics.getTimeStep(), world);
+    const b2BodyId bodyId = physics.getBody(e);
+    ASSERT_TRUE(b2Body_IsValid(bodyId));
+
+    const auto shapesA = getShapeIds(bodyId);
+    ASSERT_FALSE(shapesA.empty());
+
+    physics.fixedUpdate(physics.getTimeStep(), world);
+    const auto shapesB = getShapeIds(bodyId);
+
+    EXPECT_EQ(shapesA, shapesB);
+}
+
+TEST(S2DPhysicsRegressionTest, ShapesRebuildWhenColliderChanges)
+{
+    World world;
+
+    Entity e = world.createEntity();
+
+    auto* t = world.add<Components::CTransform>(e);
+    ASSERT_NE(t, nullptr);
+    t->position = {0.0f, 2.0f};
+
+    auto* body = world.add<Components::CPhysicsBody2D>(e);
+    ASSERT_NE(body, nullptr);
+    body->bodyType = Components::BodyType::Dynamic;
+
+    auto* collider = world.add<Components::CCollider2D>(e);
+    ASSERT_NE(collider, nullptr);
+    collider->density     = 1.0f;
+    collider->friction    = 0.3f;
+    collider->restitution = 0.0f;
+    collider->createPolygon({Vec2{-0.5f, -0.2f}, Vec2{0.5f, -0.2f}, Vec2{0.6f, 0.2f}, Vec2{-0.4f, 0.3f}}, 0.02f);
+
+    Systems::S2DPhysics physics;
+
+    physics.fixedUpdate(physics.getTimeStep(), world);
+    const b2BodyId bodyId = physics.getBody(e);
+    ASSERT_TRUE(b2Body_IsValid(bodyId));
+
+    const auto shapesA = getShapeIds(bodyId);
+    ASSERT_FALSE(shapesA.empty());
+
+    collider->friction = 0.9f;
+
+    physics.fixedUpdate(physics.getTimeStep(), world);
+    const auto shapesB = getShapeIds(bodyId);
+
+    EXPECT_NE(shapesA, shapesB);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

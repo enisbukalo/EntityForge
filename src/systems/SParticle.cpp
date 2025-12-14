@@ -546,9 +546,9 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             continue;
         }
 
-        // Convert to screen space
-        sf::Vector2f screenPos = worldToScreen(particle.position);
-        float        pixelSize = metersToPixels(particle.size);
+        // Render in world space (meters). The active sf::View handles world->screen mapping.
+        sf::Vector2f worldPos(static_cast<float>(particle.position.x), static_cast<float>(particle.position.y));
+        float        halfSizeWorld = particle.size;
 
         // Create color with alpha
         sf::Color color(particle.color.r, particle.color.g, particle.color.b, static_cast<sf::Uint8>(particle.alpha * 255.0f));
@@ -561,10 +561,10 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
 
             // Quad corners (centered)
             sf::Vector2f corners[4] = {
-                sf::Vector2f(-pixelSize, -pixelSize),  // Top-left
-                sf::Vector2f(pixelSize, -pixelSize),   // Top-right
-                sf::Vector2f(pixelSize, pixelSize),    // Bottom-right
-                sf::Vector2f(-pixelSize, pixelSize)    // Bottom-left
+                sf::Vector2f(-halfSizeWorld, -halfSizeWorld),  // Top-left
+                sf::Vector2f(halfSizeWorld, -halfSizeWorld),   // Top-right
+                sf::Vector2f(halfSizeWorld, halfSizeWorld),    // Bottom-right
+                sf::Vector2f(-halfSizeWorld, halfSizeWorld)    // Bottom-left
             };
 
             // Rotate corners
@@ -574,7 +574,7 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
                 float y      = corners[i].y;
                 corners[i].x = x * cosR - y * sinR;
                 corners[i].y = x * sinR + y * cosR;
-                corners[i] += screenPos;
+                corners[i] += worldPos;
             }
 
             // Texture coordinates (in pixels for SFML - confirmed by official docs)
@@ -598,10 +598,10 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             float cosR = std::cos(particle.rotation);
             float sinR = std::sin(particle.rotation);
 
-            sf::Vector2f corners[4] = {sf::Vector2f(-pixelSize, -pixelSize),
-                                       sf::Vector2f(pixelSize, -pixelSize),
-                                       sf::Vector2f(pixelSize, pixelSize),
-                                       sf::Vector2f(-pixelSize, pixelSize)};
+            sf::Vector2f corners[4] = {sf::Vector2f(-halfSizeWorld, -halfSizeWorld),
+                                       sf::Vector2f(halfSizeWorld, -halfSizeWorld),
+                                       sf::Vector2f(halfSizeWorld, halfSizeWorld),
+                                       sf::Vector2f(-halfSizeWorld, halfSizeWorld)};
 
             for (int i = 0; i < 4; ++i)
             {
@@ -609,7 +609,7 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
                 float y      = corners[i].y;
                 corners[i].x = x * cosR - y * sinR;
                 corners[i].y = x * sinR + y * cosR;
-                corners[i] += screenPos;
+                corners[i] += worldPos;
             }
 
             for (int i = 0; i < 4; ++i)
@@ -632,19 +632,6 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
 
         targetWindow->draw(m_vertexArray, states);
     }
-}
-
-sf::Vector2f SParticle::worldToScreen(const Vec2& worldPos) const
-{
-    float screenX      = worldPos.x * m_pixelsPerMeter;
-    float screenHeight = m_window ? m_window->getSize().y : 600.0f;
-    float screenY      = screenHeight - (worldPos.y * m_pixelsPerMeter);
-    return sf::Vector2f(screenX, screenY);
-}
-
-float SParticle::metersToPixels(float meters) const
-{
-    return meters * m_pixelsPerMeter;
 }
 
 }  // namespace Systems

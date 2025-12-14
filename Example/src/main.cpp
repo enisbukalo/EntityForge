@@ -5,14 +5,16 @@
 #include <Color.h>
 #include <Components.h>
 #include <Logger.h>
+#include <SystemLocator.h>
 
 #include <exception>
 #include <iostream>
-#include <limits>
 
 #include "AudioManager.h"
 #include "BarrelSpawner.h"
 #include "Boat.h"
+#include "CameraController.h"
+#include "MainCamera.h"
 
 using namespace Systems;
 
@@ -26,7 +28,7 @@ static constexpr float PIXELS_PER_METER = 100.0f;
 static constexpr float PLAYFIELD_WIDTH_METERS  = SCREEN_WIDTH / PIXELS_PER_METER;
 static constexpr float PLAYFIELD_HEIGHT_METERS = SCREEN_HEIGHT / PIXELS_PER_METER;
 
-static constexpr size_t DEFAULT_BARREL_COUNT = 20;
+static constexpr size_t DEFAULT_BARREL_COUNT = 200;
 
 static Entity createAudioManager(World& world)
 {
@@ -40,7 +42,7 @@ static Entity createBarrelSpawner(World& world)
 {
     Entity spawner = world.createEntity();
     auto*  script  = world.components().add<Components::CNativeScript>(spawner);
-    script->bind<Example::BarrelSpawner>(0.0f, PLAYFIELD_WIDTH_METERS, 0.0f, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
+    script->bind<Example::BarrelSpawner>(-PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
     return spawner;
 }
 
@@ -76,8 +78,31 @@ int main()
 
         World& world = engine.world();
         (void)createAudioManager(world);
-        (void)Example::spawnBoat(world);
+        const Entity boat = Example::spawnBoat(world);
+        (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
+        (void)Example::spawnCameraController(world, "Main");
         (void)createBarrelSpawner(world);
+
+        // Mouse picking demo: log world-space coordinates on click.
+        (void)engine.getInputManager().subscribe(
+            [&](const InputEvent& inputEvent)
+            {
+                if (inputEvent.type != InputEventType::MouseButtonPressed)
+                {
+                    return;
+                }
+                if (inputEvent.mouse.button != MouseButton::Left)
+                {
+                    return;
+                }
+
+                const Vec2 worldPos = Systems::SystemLocator::camera().screenToWorld(world, "", inputEvent.mouse.position);
+                LOG_INFO_CONSOLE("Click px=({}, {}) -> world=({}, {})",
+                                 inputEvent.mouse.position.x,
+                                 inputEvent.mouse.position.y,
+                                 worldPos.x,
+                                 worldPos.y);
+            });
 
         LOG_INFO_CONSOLE("Game initialized!");
         LOG_INFO_CONSOLE("Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)");
@@ -127,11 +152,6 @@ int main()
             window->close();
         }
 
-        std::cout << "\nGame ended. Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
-
         LOG_INFO_CONSOLE("Exiting normally");
         Logger::shutdown();
         return 0;
@@ -144,11 +164,6 @@ int main()
             LOG_ERROR_CONSOLE("FATAL std::exception: {}", e.what());
             Logger::shutdown();
         }
-
-        std::cerr << "Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
         return 1;
     }
     catch (...)
@@ -159,11 +174,6 @@ int main()
             LOG_ERROR_CONSOLE("FATAL unknown exception");
             Logger::shutdown();
         }
-
-        std::cerr << "Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
         return 1;
     }
 }

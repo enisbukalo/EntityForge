@@ -223,7 +223,7 @@ void Boat::onUpdate(float /*deltaTime*/, Entity self, World& world)
         if (emitter)
         {
             const float MIN_SPEED_FOR_SPRAY = 0.05f;
-            const float MAX_SPEED_FOR_SPRAY = 2.0f;
+            const float MAX_SPEED_FOR_SPRAY = 1.5f;
             const float MIN_EMISSION_RATE   = 0.0f;
             const float MAX_EMISSION_RATE   = 5000.0f;
 

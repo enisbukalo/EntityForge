@@ -81,20 +81,6 @@ private:
     /** @brief Deleted assignment operator */
     SParticle& operator=(const SParticle&) = delete;
 
-    /**
-     * @brief Converts world coordinates (meters) to screen coordinates (pixels)
-     * @param worldPos Position in meters
-     * @return Position in pixels
-     */
-    sf::Vector2f worldToScreen(const Vec2& worldPos) const;
-
-    /**
-     * @brief Converts meters to pixels (for size)
-     * @param meters Size in meters
-     * @return Size in pixels
-     */
-    float metersToPixels(float meters) const;
-
     const sf::Texture* loadTexture(const std::string& filepath);
 
     sf::VertexArray   m_vertexArray;     ///< Vertex array for rendering

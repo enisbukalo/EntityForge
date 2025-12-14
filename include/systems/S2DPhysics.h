@@ -45,6 +45,8 @@ private:
     std::unordered_map<Entity, std::vector<b2ShapeId>> m_shapes;
     std::unordered_map<Entity, std::vector<b2ChainId>> m_chains;
 
+    std::unordered_map<Entity, uint64_t> m_colliderHashes;
+
     // Per-entity fixed-update callbacks
     std::unordered_map<Entity, std::function<void(float)>> m_fixedCallbacks;
 
@@ -56,7 +58,7 @@ private:
     void ensureBodyForEntity(Entity entity, const Components::CTransform& transform, const Components::CPhysicsBody2D& body);
     void ensureShapesForEntity(Entity entity, const Components::CCollider2D& collider);
     void destroyShapes(Entity entity);
-    void syncFromTransform(Entity entity, const Components::CTransform& transform);
+    void syncFromTransform(Entity entity, const Components::CTransform& transform, const Components::CPhysicsBody2D& body);
     void syncToTransform(Entity entity, Components::CTransform& transform);
     void pruneDestroyedBodies(const World& world);
     void destroyBodyInternal(b2BodyId bodyId);
