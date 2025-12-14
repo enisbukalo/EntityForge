@@ -228,10 +228,7 @@ target_link_libraries(GameEngine
     box2d
 )
 
-target_link_libraries(GameEngine
-    PRIVATE
-    spdlog::spdlog
-)
+target_link_libraries(GameEngine PRIVATE spdlog::spdlog)
 
 # Link Windows-specific libraries only when building for Windows
 if(WIN32 OR MINGW)
@@ -298,25 +295,11 @@ if(GAMEENGINE_INSTALL)
         COMPATIBILITY SameMajorVersion
     )
 
-    # Create a config file template
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/GameEngineConfig.cmake.in"
-        "include(CMakeFindDependencyMacro)\n\n"
-        "# Find dependencies\n"
-        "find_dependency(Threads)\n"
-        "find_dependency(SFML 2.6 COMPONENTS graphics window system audio)\n"
-        "find_dependency(OpenGL)\n"
-        "find_dependency(box2d)\n"
-        "find_dependency(spdlog)\n"
-        "\n"
-        "# Include the targets file\n"
-        "include(\"\${CMAKE_CURRENT_LIST_DIR}/GameEngineTargets.cmake\")\n"
-    )
-
-    # Configure the config file
-    configure_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/GameEngineConfig.cmake.in"
+    # Configure the package config file (used by consumers via find_package(GameEngine)).
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameEngineConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/GameEngineConfig.cmake"
-        @ONLY
+        INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
     )
 
     # Install config files

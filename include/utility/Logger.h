@@ -1,9 +1,7 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/spdlog.h>
+#include <spdlog/logger.h>
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
@@ -15,11 +13,11 @@ namespace Internal
 {
 
 /**
- * @brief Centralized async logging system for the game engine
+ * @brief Centralized logging system for the game engine
  *
  * @description
  * Features:
- * - Asynchronous file-based logging (non-blocking)
+ * - File-based logging
  * - Timestamped log files (e.g., 2025-12-13_14-30-45.log)
  * - Compile-time log level stripping for Release builds
  * - Optional console output for game developers debugging their games
@@ -167,8 +165,8 @@ public:
     static std::string getCurrentLogPath();
 
 private:
-    static std::shared_ptr<spdlog::logger> s_logger;         ///< File logger (async)
-    static std::shared_ptr<spdlog::logger> s_consoleLogger;  ///< Console logger (for optional output)
+    static std::shared_ptr<spdlog::logger> s_logger;         ///< File logger
+    static std::shared_ptr<spdlog::logger> s_consoleLogger;  ///< Console logger
     static std::string                     s_currentLogPath;
 
     /**
@@ -188,36 +186,31 @@ using Logger = Internal::Logger;
 // Logging Macros with Compile-Time Elimination
 // ============================================================================
 
-// In Release builds (NDEBUG defined), INFO/DEBUG/WARN are compiled out
-// ERROR is always enabled as it's critical for debugging production issues
+// Logging macros.
+// - INFO/WARN/ERROR are enabled in all builds.
+// - DEBUG is compiled out in Release (NDEBUG).
 
-#ifndef NDEBUG
-// Debug build - all logging enabled (file only by default)
 #define LOG_INFO(...) Internal::Logger::info(__VA_ARGS__)
-#define LOG_DEBUG(...) Internal::Logger::debug(__VA_ARGS__)
 #define LOG_WARN(...) Internal::Logger::warn(__VA_ARGS__)
-#else
-// Release build - only ERROR enabled
-#define LOG_INFO(...) ((void)0)
-#define LOG_DEBUG(...) ((void)0)
-#define LOG_WARN(...) ((void)0)
-#endif
-
-// ERROR is always enabled
 #define LOG_ERROR(...) Internal::Logger::error(__VA_ARGS__)
 
-// Convenience macros for console output (for game developers debugging their games)
-// Usage: LOG_INFO_CONSOLE("message {}", value);
 #ifndef NDEBUG
-#define LOG_INFO_CONSOLE(...) Internal::Logger::infoConsole(__VA_ARGS__)
-#define LOG_DEBUG_CONSOLE(...) Internal::Logger::debugConsole(__VA_ARGS__)
-#define LOG_WARN_CONSOLE(...) Internal::Logger::warnConsole(__VA_ARGS__)
+#define LOG_DEBUG(...) Internal::Logger::debug(__VA_ARGS__)
 #else
-#define LOG_INFO_CONSOLE(...) ((void)0)
-#define LOG_DEBUG_CONSOLE(...) ((void)0)
-#define LOG_WARN_CONSOLE(...) ((void)0)
+#define LOG_DEBUG(...) ((void)0)
 #endif
 
+// Convenience macros for console output.
+// Usage: LOG_INFO_CONSOLE("message {}", value);
+
+#define LOG_INFO_CONSOLE(...) Internal::Logger::infoConsole(__VA_ARGS__)
+#define LOG_WARN_CONSOLE(...) Internal::Logger::warnConsole(__VA_ARGS__)
 #define LOG_ERROR_CONSOLE(...) Internal::Logger::errorConsole(__VA_ARGS__)
+
+#ifndef NDEBUG
+#define LOG_DEBUG_CONSOLE(...) Internal::Logger::debugConsole(__VA_ARGS__)
+#else
+#define LOG_DEBUG_CONSOLE(...) ((void)0)
+#endif
 
 #endif  // LOGGER_H

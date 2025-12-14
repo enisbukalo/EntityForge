@@ -1,8 +1,15 @@
 #include "Logger.h"
-#include <spdlog/async.h>
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <iostream>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <limits.h>
+#include <unistd.h>
+#endif
 
 namespace Internal
 {
@@ -10,6 +17,43 @@ namespace Internal
 std::shared_ptr<spdlog::logger> Logger::s_logger         = nullptr;
 std::shared_ptr<spdlog::logger> Logger::s_consoleLogger  = nullptr;
 std::string                     Logger::s_currentLogPath = "";
+
+namespace
+{
+
+std::filesystem::path getExecutableDir()
+{
+#if defined(_WIN32)
+    char        buffer[MAX_PATH] = {0};
+    const DWORD len              = GetModuleFileNameA(nullptr, buffer, static_cast<DWORD>(sizeof(buffer)));
+    if (len == 0 || len >= sizeof(buffer))
+    {
+        return std::filesystem::current_path();
+    }
+    return std::filesystem::path(std::string(buffer, len)).parent_path();
+#else
+    char          buffer[PATH_MAX] = {0};
+    const ssize_t len              = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (len <= 0)
+    {
+        return std::filesystem::current_path();
+    }
+    buffer[len] = '\0';
+    return std::filesystem::path(buffer).parent_path();
+#endif
+}
+
+std::filesystem::path resolveLogDir(const std::string& logDirectory)
+{
+    std::filesystem::path dir(logDirectory);
+    if (dir.is_relative())
+    {
+        dir = getExecutableDir() / dir;
+    }
+    return dir;
+}
+
+}  // namespace
 
 std::string Logger::generateTimestampedFilename()
 {
@@ -30,16 +74,45 @@ void Logger::initialize(const std::string& logDirectory)
 
     try
     {
-        // Create log directory if it doesn't exist
-        std::filesystem::create_directories(logDirectory);
+        // Always create console logger first, so we can report failures even if file logging can't be set up.
+        try
+        {
+            if (auto existing = spdlog::get("ConsoleLogger"))
+            {
+                s_consoleLogger = existing;
+            }
+            else
+            {
+                s_consoleLogger = spdlog::stdout_color_mt("ConsoleLogger");
+            }
+            s_consoleLogger->set_pattern("[%^%l%$] %v");
+        }
+        catch (const spdlog::spdlog_ex&)
+        {
+            // If console logger cannot be created, continue; we'll still attempt file logging.
+        }
+
+        std::filesystem::path dirPath = resolveLogDir(logDirectory);
+
+        // Create log directory without throwing; fall back to a temp directory if the chosen location isn't writable.
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(dirPath, ec);
+            if (ec)
+            {
+                std::error_code tempEc;
+                auto            temp = std::filesystem::temp_directory_path(tempEc);
+                if (!tempEc)
+                {
+                    dirPath = temp / "GameEngineLogs";
+                    std::filesystem::create_directories(dirPath, ec);
+                }
+            }
+        }
 
         // Generate timestamped filename
         std::string filename = generateTimestampedFilename();
-        s_currentLogPath     = logDirectory + "/" + filename;
-
-        // Initialize spdlog thread pool for async logging
-        // Queue size: 8192, Thread count: 1
-        spdlog::init_thread_pool(8192, 1);
+        s_currentLogPath     = (dirPath / filename).string();
 
         // Create basic file sink (no rotation - each session gets a new timestamped file)
         auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(s_currentLogPath, true);
@@ -47,35 +120,54 @@ void Logger::initialize(const std::string& logDirectory)
         // Set log pattern: [timestamp] [level] [thread] message
         file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [T:%t] %v");
 
-        // Create async logger with the file sink
-        s_logger = std::make_shared<spdlog::async_logger>("GameEngineLogger",
-                                                          file_sink,
-                                                          spdlog::thread_pool(),
-                                                          spdlog::async_overflow_policy::overrun_oldest);
+        // Create logger (synchronous on purpose).
+        // This avoids any startup deadlocks/hangs related to background logging threads,
+        // and ensures the log file is written immediately.
+        s_logger = std::make_shared<spdlog::logger>("GameEngineLogger", file_sink);
 
-        // Create console logger for optional console output (used by game developers)
-        s_consoleLogger = spdlog::stdout_color_mt("ConsoleLogger");
-        s_consoleLogger->set_pattern("[%^%l%$] %v");
-
-        // Set log level based on build type
+        // Set log level based on build type.
+        // Release should still emit INFO/WARN/ERROR; Debug emits DEBUG too.
 #ifndef NDEBUG
-        s_logger->set_level(spdlog::level::debug);
-        s_consoleLogger->set_level(spdlog::level::debug);
+        const auto level = spdlog::level::debug;
 #else
-        s_logger->set_level(spdlog::level::err);
-        s_consoleLogger->set_level(spdlog::level::err);
+        const auto level = spdlog::level::info;
 #endif
+        s_logger->set_level(level);
+        if (s_consoleLogger)
+        {
+            s_consoleLogger->set_level(level);
+        }
 
-        // Register the logger
-        spdlog::register_logger(s_logger);
+        // Register the logger (ignore if already registered)
+        try
+        {
+            spdlog::register_logger(s_logger);
+        }
+        catch (const spdlog::spdlog_ex&)
+        {
+        }
 
-        // Flush on error level and above
-        s_logger->flush_on(spdlog::level::err);
+        // Flush on INFO so logs show up even if the app crashes/hangs.
+        s_logger->flush_on(spdlog::level::info);
 
         s_logger->info("=== Logger Initialized ===");
         s_logger->info("Log file: {}", s_currentLogPath);
+
+        // Force a flush so the file is never empty if initialization succeeded.
+        s_logger->flush();
+
+        if (s_consoleLogger)
+        {
+            s_consoleLogger->info("Logger initialized");
+            s_consoleLogger->info("Log file: {}", s_currentLogPath);
+            s_consoleLogger->flush();
+        }
     }
     catch (const spdlog::spdlog_ex& ex)
+    {
+        std::cerr << "Logger initialization failed: " << ex.what() << std::endl;
+    }
+    catch (const std::exception& ex)
     {
         std::cerr << "Logger initialization failed: " << ex.what() << std::endl;
     }

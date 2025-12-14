@@ -63,6 +63,7 @@ target_include_directories(unit_tests PRIVATE
     ${SYSTEM_DIR}
     ${UTILITY_DIR}
     ${PHYSICS_DIR}
+    $<TARGET_PROPERTY:spdlog::spdlog,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 # Copy required DLLs to the test executable directory on Windows

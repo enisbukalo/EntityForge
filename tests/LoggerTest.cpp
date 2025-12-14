@@ -20,7 +20,18 @@ protected:
         // Clean up after each test
         Logger::shutdown();
 
-        // Clean up test log directories
+        // Clean up test log directories.
+        // Logger resolves relative log dirs against the executable directory, not the CWD.
+        const std::string logPath = Logger::getCurrentLogPath();
+        if (!logPath.empty())
+        {
+            const auto logDir = std::filesystem::path(logPath).parent_path();
+            const auto exeDir = logDir.parent_path();
+            std::filesystem::remove_all(exeDir / "test_logs");
+            std::filesystem::remove_all(exeDir / "test_logs_2");
+        }
+
+        // Best-effort cleanup for any legacy behavior that wrote relative to the CWD.
         std::filesystem::remove_all("test_logs");
         std::filesystem::remove_all("test_logs_2");
     }
@@ -36,10 +47,14 @@ TEST_F(LoggerTest, InitializeCreatesLogDirectoryAndFile)
     Logger::initialize("test_logs");
 
     EXPECT_TRUE(Logger::isInitialized());
-    EXPECT_TRUE(std::filesystem::exists("test_logs"));
-
-    std::string logPath = Logger::getCurrentLogPath();
+    const std::string logPath = Logger::getCurrentLogPath();
     EXPECT_FALSE(logPath.empty());
+
+    const auto logFile = std::filesystem::path(logPath);
+    const auto logDir  = logFile.parent_path();
+    EXPECT_TRUE(std::filesystem::exists(logDir));
+    EXPECT_TRUE(std::filesystem::exists(logFile));
+
     EXPECT_TRUE(logPath.find("test_logs") != std::string::npos);
     EXPECT_TRUE(logPath.find(".log") != std::string::npos);
 }
@@ -63,7 +78,10 @@ TEST_F(LoggerTest, DoubleInitializeIsNoOp)
 
     // Second init should be ignored, path should remain the same
     EXPECT_EQ(firstLogPath, secondLogPath);
-    EXPECT_FALSE(std::filesystem::exists("test_logs_2"));
+
+    const auto firstLogDir = std::filesystem::path(firstLogPath).parent_path();
+    const auto exeDir      = firstLogDir.parent_path();
+    EXPECT_FALSE(std::filesystem::exists(exeDir / "test_logs_2"));
 }
 
 TEST_F(LoggerTest, ShutdownWithoutInitializeIsNoOp)
