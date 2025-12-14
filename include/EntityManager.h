@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include "Entity.h"
+#include "utility/Logger.h"
 
 /**
  * @brief Allocates and recycles entity handles with generation counters
@@ -31,15 +32,21 @@ public:
             m_generation.push_back(0);
         }
 
+        Entity result;
         if (!m_free.empty())
         {
             EntityIndex idx = m_free.back();
             m_free.pop_back();
-            return Entity{idx, m_generation[idx]};
+            result = Entity{idx, m_generation[idx]};
+        }
+        else
+        {
+            m_generation.push_back(0);
+            result = Entity{static_cast<EntityIndex>(m_generation.size() - 1), 0};
         }
 
-        m_generation.push_back(0);
-        return Entity{static_cast<EntityIndex>(m_generation.size() - 1), 0};
+        LOG_DEBUG("Entity created: E{}:G{}", result.index, result.generation);
+        return result;
     }
 
     /**
@@ -49,6 +56,7 @@ public:
     {
         if (!isAlive(e))
             return;
+        LOG_DEBUG("Entity destroyed: E{}:G{}", e.index, e.generation);
         ++m_generation[e.index];
         m_free.push_back(e.index);
     }

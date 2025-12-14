@@ -228,10 +228,10 @@ target_link_libraries(GameEngine
     box2d
 )
 
-# spdlog is used internally by the engine but consumers (e.g., Example) should not be
-# required to resolve a spdlog CMake package.
+# spdlog is linked publicly since Logger.h (part of the public API) includes spdlog headers.
+# Consumers that include EntityManager.h, Registry.h, etc. will transitively get Logger.h.
 target_link_libraries(GameEngine
-    PRIVATE
+    PUBLIC
     spdlog::spdlog
 )
 
@@ -242,6 +242,7 @@ if(WIN32 OR MINGW)
         opengl32
         winmm
         gdi32
+        dbghelp  # Required for StackTrace symbol resolution
     )
 endif()
 

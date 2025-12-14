@@ -1,8 +1,5 @@
 #include "GameEngine.h"
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
+#include "utility/Logger.h"
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
@@ -35,59 +32,21 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // Register component type names for diagnostics
     registerComponentTypes();
 
-    // Initialize spdlog logger. This must not be allowed to crash the game
-    // if a log file cannot be created (e.g., read-only working directory).
-    if (!spdlog::get("GameEngine"))
+    // Initialize the async logger
+    Logger::initialize();
+
+    LOG_INFO("GameEngine initialized");
+    LOG_INFO("Window size: {}x{}", windowConfig.width, windowConfig.height);
+    LOG_INFO("SubSteps: {}, TimeStep: {}", static_cast<int>(subStepCount), m_timeStep);
+    if (timeStep != m_timeStep)
     {
-        try
-        {
-            auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-            console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [Thread:%t] %v");
-            console_sink->set_level(spdlog::level::info);
-
-            std::vector<spdlog::sink_ptr> sinks;
-            sinks.push_back(console_sink);
-
-            try
-            {
-                auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("game_engine.log", true);
-                file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [Thread:%t] %v");
-                file_sink->set_level(spdlog::level::debug);
-                sinks.push_back(file_sink);
-            }
-            catch (const spdlog::spdlog_ex& e)
-            {
-                std::cerr << "GameEngine: failed to create log file (game_engine.log): " << e.what() << "\n";
-            }
-
-            auto logger = std::make_shared<spdlog::logger>("GameEngine", sinks.begin(), sinks.end());
-            logger->set_level(spdlog::level::info);
-            spdlog::register_logger(logger);
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "GameEngine: logger initialization failed: " << e.what() << "\n";
-        }
-    }
-
-    if (auto logger = spdlog::get("GameEngine"))
-    {
-        logger->info("GameEngine initialized");
-        logger->info("Window size: {}x{}", windowConfig.width, windowConfig.height);
-        logger->info("SubSteps: {}, TimeStep: {}", (int)subStepCount, m_timeStep);
-        if (timeStep != m_timeStep)
-        {
-            logger->warn("Ignoring requested timeStep {} and enforcing fixed 60Hz ({}).", timeStep, m_timeStep);
-        }
+        LOG_WARN("Ignoring requested timeStep {} and enforcing fixed 60Hz ({}).", timeStep, m_timeStep);
     }
 
     // Initialize renderer
     if (!m_renderer->initialize(windowConfig))
     {
-        if (auto logger = spdlog::get("GameEngine"))
-        {
-            logger->error("Failed to initialize SRenderer");
-        }
+        LOG_ERROR("Failed to initialize SRenderer");
         std::cerr << "GameEngine: failed to initialize renderer/window.\n";
         return;
     }
@@ -132,10 +91,7 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // Audio is marked as PostFlush via ISystem::stage().
     m_systemOrder = {m_input.get(), m_script.get(), m_physics.get(), m_particle.get(), m_audio.get()};
 
-    if (auto logger = spdlog::get("GameEngine"))
-    {
-        logger->info("All core systems initialized");
-    }
+    LOG_INFO("All core systems initialized");
 }
 
 GameEngine::~GameEngine()
@@ -162,12 +118,8 @@ GameEngine::~GameEngine()
         m_audio->shutdown();
     }
 
-    if (auto logger = spdlog::get("GameEngine"))
-    {
-        logger->info("GameEngine shutting down");
-    }
-    // Note: Don't drop the logger or shutdown thread pool here since the logger
-    // may be reused if another GameEngine instance is created
+    LOG_INFO("GameEngine shutting down");
+    Logger::shutdown();
 }
 
 void GameEngine::readInputs()
@@ -288,20 +240,14 @@ void GameEngine::validateComponentTypeNames()
         const std::string registered = m_world.getTypeName<T>();
         if (registered != stableName)
         {
-            if (auto logger = spdlog::get("GameEngine"))
-            {
-                logger->error("Component type '{}' registered as '{}' but expected '{}'", typeid(T).name(), registered, stableName);
-            }
+            LOG_ERROR("Component type '{}' registered as '{}' but expected '{}'", typeid(T).name(), registered, stableName);
             return;
         }
 
         const std::type_index fromName = m_world.getTypeFromName(stableName);
         if (fromName != std::type_index(typeid(T)))
         {
-            if (auto logger = spdlog::get("GameEngine"))
-            {
-                logger->error("Component lookup for '{}' returned different type index", stableName);
-            }
+            LOG_ERROR("Component lookup for '{}' returned different type index", stableName);
         }
     };
 

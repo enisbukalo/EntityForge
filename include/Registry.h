@@ -21,6 +21,7 @@
 #include <cstdio>
 
 #include <EntityManager.h>
+#include "utility/Logger.h"
 
 /**
  * @brief Type-erased interface for component storage
@@ -397,6 +398,8 @@ public:
 
         trackComponentAdd(entity, std::type_index(typeid(T)));
 
+        LOG_DEBUG("Component added: {} @ E{}:G{}", typeid(T).name(), entity.index, entity.generation);
+
         // Automatically wire owner on components that expose setOwner (most current components)
 
         return &component;
@@ -417,6 +420,7 @@ public:
         auto* store = getStore<T>();
         if (store)
         {
+            LOG_DEBUG("Component removed: {} @ E{}:G{}", typeid(T).name(), entity.index, entity.generation);
             store->remove(entity);
             trackComponentRemove(entity, std::type_index(typeid(T)));
         }
