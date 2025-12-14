@@ -12,6 +12,7 @@
 #include "AudioManager.h"
 #include "BarrelSpawner.h"
 #include "Boat.h"
+#include "MainCamera.h"
 
 using namespace Systems;
 
@@ -75,7 +76,8 @@ int main()
 
         World& world = engine.world();
         (void)createAudioManager(world);
-        (void)Example::spawnBoat(world);
+        const Entity boat = Example::spawnBoat(world);
+        (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
         (void)createBarrelSpawner(world);
 
         LOG_INFO_CONSOLE("Game initialized!");

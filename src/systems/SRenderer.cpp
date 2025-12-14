@@ -1,5 +1,7 @@
 #include "SRenderer.h"
 #include <algorithm>
+#include <vector>
+#include "CCamera.h"
 #include "CCollider2D.h"
 #include "CMaterial.h"
 #include "CParticleEmitter.h"
@@ -7,6 +9,7 @@
 #include "CShader.h"
 #include "CTexture.h"
 #include "CTransform.h"
+#include "CameraView.h"
 #include "Logger.h"
 #include "SParticle.h"
 #include "World.h"
@@ -129,18 +132,58 @@ void SRenderer::render(World& world)
               renderQueue.end(),
               [](const RenderItem& a, const RenderItem& b) { return a.zIndex < b.zIndex; });
 
-    for (const RenderItem& item : renderQueue)
+    struct CameraItem
     {
-        if (item.isParticleEmitter)
+        Entity                 entity;
+        ::Components::CCamera* camera;
+    };
+
+    std::vector<CameraItem> cameras;
+    components.view<::Components::CCamera>([&cameras](Entity entity, ::Components::CCamera& camera)
+                                           { cameras.push_back({entity, &camera}); });
+
+    std::stable_sort(cameras.begin(),
+                     cameras.end(),
+                     [](const CameraItem& a, const CameraItem& b)
+                     {
+                         if (a.camera->renderOrder != b.camera->renderOrder)
+                         {
+                             return a.camera->renderOrder < b.camera->renderOrder;
+                         }
+                         return a.entity < b.entity;
+                     });
+
+    // If no cameras exist, fall back to a default camera so the renderer still uses world units.
+    ::Components::CCamera defaultCamera;
+    if (cameras.empty())
+    {
+        cameras.push_back({Entity::null(), &defaultCamera});
+    }
+
+    for (const CameraItem& cameraItem : cameras)
+    {
+        const ::Components::CCamera& camera = *cameraItem.camera;
+        if (!camera.enabled || !camera.render)
         {
-            if (m_particleSystem && m_particleSystem->isInitialized())
-            {
-                m_particleSystem->renderEmitter(item.entity, m_window.get(), world);
-            }
             continue;
         }
 
-        renderEntity(item.entity, world);
+        const sf::View view = Internal::buildViewFromCamera(camera, m_window->getSize());
+        m_window->setView(view);
+
+        for (const RenderItem& item : renderQueue)
+        {
+            if (item.isParticleEmitter)
+            {
+                if (m_particleSystem && m_particleSystem->isInitialized())
+                {
+                    m_particleSystem->renderEmitter(item.entity, m_window.get(), world);
+                }
+                continue;
+            }
+
+            renderEntity(item.entity, world);
+        }
     }
 }
 
@@ -288,18 +331,16 @@ void SRenderer::renderEntity(Entity entity, World& world)
         return;
     }
 
-    // Get position, scale, and rotation
+    // World-space transform (meters, Y-up). View handles Y-up mapping.
     Vec2  pos      = transform->getPosition();
     Vec2  scale    = transform->getScale();
     float rotation = transform->getRotation();
 
-    // Convert from physics coordinates (meters, Y-up) to screen coordinates (pixels, Y-down)
-    const float PIXELS_PER_METER = 100.0f;
-    const float SCREEN_HEIGHT    = static_cast<float>(m_window->getSize().y);
-
-    sf::Vector2f screenPos;
-    screenPos.x = pos.x * PIXELS_PER_METER;
-    screenPos.y = SCREEN_HEIGHT - (pos.y * PIXELS_PER_METER);  // Flip Y axis
+    constexpr float kPixelsPerMeter = 100.0f;
+    constexpr float kPi             = 3.14159265358979323846f;
+    // CTransform stores radians in a Y-up world (CCW-positive). Since the active sf::View
+    // already maps the world into SFML's space, we can pass the angle through directly.
+    const float rotationDegrees = rotation * 180.0f / kPi;
 
     // Get material if available
     auto* material = components.tryGet<::Components::CMaterial>(entity);
@@ -373,20 +414,21 @@ void SRenderer::renderEntity(Entity entity, World& world)
             auto* collider = components.tryGet<::Components::CCollider2D>(entity);
             if (collider && collider->getShapeType() == ::Components::ColliderShape::Box)
             {
-                float halfWidth  = collider->getBoxHalfWidth() * PIXELS_PER_METER;
-                float halfHeight = collider->getBoxHalfHeight() * PIXELS_PER_METER;
+                float halfWidth  = collider->getBoxHalfWidth();
+                float halfHeight = collider->getBoxHalfHeight();
                 rect.setSize(sf::Vector2f(halfWidth * 2.0f, halfHeight * 2.0f));
                 rect.setOrigin(halfWidth, halfHeight);
             }
             else
             {
-                // Default rectangle size
-                rect.setSize(sf::Vector2f(50.0f * scale.x, 50.0f * scale.y));
-                rect.setOrigin(25.0f * scale.x, 25.0f * scale.y);
+                // Default rectangle size (pixels converted to meters)
+                constexpr float kDefaultSizeM = 50.0f / kPixelsPerMeter;
+                rect.setSize(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
+                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
             }
 
-            rect.setPosition(screenPos);
-            rect.setRotation(-rotation * 180.0f / 3.14159265f);  // Negate for Y-axis flip
+            rect.setPosition(pos.x, pos.y);
+            rect.setRotation(rotationDegrees);
             rect.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -407,14 +449,19 @@ void SRenderer::renderEntity(Entity entity, World& world)
             float radius   = 25.0f;
             if (collider && collider->getShapeType() == ::Components::ColliderShape::Circle)
             {
-                radius = collider->getCircleRadius() * PIXELS_PER_METER;
+                radius = collider->getCircleRadius();
+            }
+            else
+            {
+                // Default radius (pixels converted to meters)
+                radius = 25.0f / kPixelsPerMeter;
             }
 
             circle.setRadius(radius);
             circle.setOrigin(radius, radius);
-            circle.setPosition(screenPos);
+            circle.setPosition(pos.x, pos.y);
             circle.setScale(scale.x, scale.y);
-            circle.setRotation(-rotation * 180.0f / 3.14159265f);  // Negate for Y-axis flip
+            circle.setRotation(rotationDegrees);
             circle.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -433,53 +480,107 @@ void SRenderer::renderEntity(Entity entity, World& world)
                 sf::Sprite    sprite(*texture);
                 sf::FloatRect bounds = sprite.getLocalBounds();
 
-                // Scale sprite to match physics collider size
+                // Align sprite to the physics collider by using the collider's local bounds.
+                // This ensures CTransform.position acts as the shared origin for physics + rendering.
                 auto* collider = components.tryGet<::Components::CCollider2D>(entity);
-                if (collider)
+                if (collider && !collider->fixtures.empty())
                 {
-                    float targetSize = 0.0f;
-                    if (collider->getShapeType() == ::Components::ColliderShape::Circle)
+                    float minX = std::numeric_limits<float>::infinity();
+                    float minY = std::numeric_limits<float>::infinity();
+                    float maxX = -std::numeric_limits<float>::infinity();
+                    float maxY = -std::numeric_limits<float>::infinity();
+
+                    auto includePoint = [&](const Vec2& p)
                     {
-                        // For circles, use diameter
-                        targetSize = collider->getCircleRadius() * 2.0f * PIXELS_PER_METER;
-                    }
-                    else if (collider->getShapeType() == ::Components::ColliderShape::Box)
+                        minX = std::min(minX, p.x);
+                        minY = std::min(minY, p.y);
+                        maxX = std::max(maxX, p.x);
+                        maxY = std::max(maxY, p.y);
+                    };
+
+                    for (const auto& f : collider->fixtures)
                     {
-                        // For boxes, use width (assuming square-ish sprites)
-                        targetSize = collider->getBoxHalfWidth() * 2.0f * PIXELS_PER_METER;
-                    }
-                    else if (collider->getShapeType() == ::Components::ColliderShape::Polygon)
-                    {
-                        // For polygon colliders (including multi-polygon bodies), calculate bounding box
-                        float boundsWidth, boundsHeight;
-                        if (collider->getBounds(boundsWidth, boundsHeight))
+                        switch (f.shapeType)
                         {
-                            // Use the larger dimension to ensure the sprite covers the entire collider
-                            targetSize = std::max(boundsWidth, boundsHeight) * PIXELS_PER_METER;
+                            case ::Components::ColliderShape::Circle:
+                            {
+                                const Vec2  c = f.circle.center;
+                                const float r = f.circle.radius;
+                                includePoint(Vec2{c.x - r, c.y - r});
+                                includePoint(Vec2{c.x + r, c.y + r});
+                                break;
+                            }
+                            case ::Components::ColliderShape::Box:
+                            {
+                                const float hw = f.box.halfWidth;
+                                const float hh = f.box.halfHeight;
+                                includePoint(Vec2{-hw, -hh});
+                                includePoint(Vec2{hw, hh});
+                                break;
+                            }
+                            case ::Components::ColliderShape::Polygon:
+                            {
+                                for (const auto& v : f.polygon.vertices)
+                                {
+                                    includePoint(v);
+                                }
+                                break;
+                            }
+                            case ::Components::ColliderShape::Segment:
+                            {
+                                includePoint(f.segment.point1);
+                                includePoint(f.segment.point2);
+                                break;
+                            }
+                            case ::Components::ColliderShape::ChainSegment:
+                            {
+                                includePoint(f.chainSegment.ghost1);
+                                includePoint(f.chainSegment.point1);
+                                includePoint(f.chainSegment.point2);
+                                includePoint(f.chainSegment.ghost2);
+                                break;
+                            }
                         }
                     }
 
-                    if (targetSize > 0.0f)
+                    const float worldWidth  = maxX - minX;
+                    const float worldHeight = maxY - minY;
+
+                    const float texWidthPx  = std::max(1.0f, bounds.width);
+                    const float texHeightPx = std::max(1.0f, bounds.height);
+
+                    if (std::isfinite(worldWidth) && std::isfinite(worldHeight) && worldWidth > 0.0f && worldHeight > 0.0f)
                     {
-                        // Calculate scale to fit target size
-                        // Use the smaller dimension to ensure sprite fills the collider
-                        float spriteSize  = std::min(bounds.width, bounds.height);
-                        float spriteScale = targetSize / spriteSize;
-                        sprite.setScale(spriteScale * scale.x, spriteScale * scale.y);
+                        // Use a uniform scale based on the collider's max dimension. This matches the old
+                        // behavior better for assets with asymmetric aspect ratios or transparent padding.
+                        const float targetWorld  = std::max(worldWidth, worldHeight);
+                        const float spriteSizePx = std::max(1.0f, std::min(texWidthPx, texHeightPx));
+                        const float uniformScale = targetWorld / spriteSizePx;
+                        sprite.setScale(uniformScale * scale.x, uniformScale * scale.y);
+
+                        // Map the body origin (0,0) into the collider bounds and use that as the sprite origin.
+                        const float originXPx = bounds.left + ((0.0f - minX) / worldWidth) * texWidthPx;
+                        const float originYPx = bounds.top + ((0.0f - minY) / worldHeight) * texHeightPx;
+                        sprite.setOrigin(originXPx, originYPx);
                     }
                     else
                     {
-                        sprite.setScale(scale.x, scale.y);
+                        const float baseScale = 1.0f / kPixelsPerMeter;
+                        sprite.setScale(baseScale * scale.x, baseScale * scale.y);
+                        sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
                     }
                 }
                 else
                 {
-                    sprite.setScale(scale.x, scale.y);
+                    const float baseScale = 1.0f / kPixelsPerMeter;
+                    sprite.setScale(baseScale * scale.x, baseScale * scale.y);
+                    sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
                 }
 
-                sprite.setOrigin(bounds.width / 2.0f, bounds.height / 2.0f);
-                sprite.setPosition(screenPos);
-                sprite.setRotation(-rotation * 180.0f / 3.14159265f);  // Negate for Y-axis flip
+                sprite.setPosition(pos.x, pos.y);
+                // Convention: +Y is forward at 0 radians. Most existing Example textures were authored
+                // "forward" pointing down (screen-space), so apply a 180° flip at render time.
+                sprite.setRotation(rotationDegrees + 180.0f);
                 sprite.setColor(toSFMLColor(finalColor));
 
                 m_window->draw(sprite, states);
@@ -487,10 +588,11 @@ void SRenderer::renderEntity(Entity entity, World& world)
             else
             {
                 // Fallback: draw a rectangle if no texture
-                sf::RectangleShape rect(sf::Vector2f(50.0f * scale.x, 50.0f * scale.y));
-                rect.setOrigin(25.0f * scale.x, 25.0f * scale.y);
-                rect.setPosition(screenPos);
-                rect.setRotation(-rotation * 180.0f / 3.14159265f);  // Negate for Y-axis flip
+                constexpr float    kDefaultSizeM = 50.0f / kPixelsPerMeter;
+                sf::RectangleShape rect(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
+                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
+                rect.setPosition(pos.x, pos.y);
+                rect.setRotation(rotationDegrees);
                 rect.setFillColor(toSFMLColor(finalColor));
                 m_window->draw(rect, states);
             }
@@ -516,21 +618,21 @@ void SRenderer::renderEntity(Entity entity, World& world)
             rotatedEnd.y = lineEnd.x * sinR + lineEnd.y * cosR;
 
             // Convert to screen coordinates (meters to pixels, Y-flip)
-            sf::Vector2f screenStart;
-            screenStart.x = screenPos.x + (rotatedStart.x * PIXELS_PER_METER * scale.x);
-            screenStart.y = screenPos.y - (rotatedStart.y * PIXELS_PER_METER * scale.y);  // Negative for Y-flip
+            sf::Vector2f worldStart;
+            worldStart.x = pos.x + (rotatedStart.x * scale.x);
+            worldStart.y = pos.y + (rotatedStart.y * scale.y);
 
-            sf::Vector2f screenEnd;
-            screenEnd.x = screenPos.x + (rotatedEnd.x * PIXELS_PER_METER * scale.x);
-            screenEnd.y = screenPos.y - (rotatedEnd.y * PIXELS_PER_METER * scale.y);  // Negative for Y-flip
+            sf::Vector2f worldEnd;
+            worldEnd.x = pos.x + (rotatedEnd.x * scale.x);
+            worldEnd.y = pos.y + (rotatedEnd.y * scale.y);
 
             // Create line using VertexArray
             float           thickness = renderable->getLineThickness();
             sf::Color       lineColor = toSFMLColor(finalColor);
             sf::VertexArray line(sf::Lines, 2);
-            line[0].position = screenStart;
+            line[0].position = worldStart;
             line[0].color    = lineColor;
-            line[1].position = screenEnd;
+            line[1].position = worldEnd;
             line[1].color    = lineColor;
 
             // Draw the line (for thickness > 1, draw multiple times with offset)
@@ -541,7 +643,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
             else
             {
                 // Calculate perpendicular offset for thickness
-                sf::Vector2f direction = screenEnd - screenStart;
+                sf::Vector2f direction = worldEnd - worldStart;
                 float        length    = std::sqrt(direction.x * direction.x + direction.y * direction.y);
                 if (length > 0.0f)
                 {
@@ -552,9 +654,9 @@ void SRenderer::renderEntity(Entity entity, World& world)
                     for (int offset = -halfThickness; offset <= halfThickness; ++offset)
                     {
                         sf::VertexArray thickLine(sf::Lines, 2);
-                        thickLine[0].position = screenStart + perpendicular * static_cast<float>(offset);
+                        thickLine[0].position = worldStart + perpendicular * static_cast<float>(offset);
                         thickLine[0].color    = lineColor;
-                        thickLine[1].position = screenEnd + perpendicular * static_cast<float>(offset);
+                        thickLine[1].position = worldEnd + perpendicular * static_cast<float>(offset);
                         thickLine[1].color    = lineColor;
                         m_window->draw(thickLine, states);
                     }
