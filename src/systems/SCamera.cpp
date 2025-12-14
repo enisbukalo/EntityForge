@@ -6,6 +6,10 @@
 #include <CTransform.h>
 #include <World.h>
 
+#include <CameraProjection.h>
+#include <SRenderer.h>
+#include <SystemLocator.h>
+
 #include "Logger.h"
 
 namespace
@@ -147,6 +151,62 @@ bool SCamera::setActiveCamera(std::string name)
     m_activeCameraName = std::move(name);
     LOG_INFO("Active camera set to '{}'", m_activeCameraName);
     return true;
+}
+
+Vec2 SCamera::screenToWorld(const World& world, std::string_view cameraName, const Vec2i& windowPx) const
+{
+    const Components::CCamera* camera = nullptr;
+    if (!cameraName.empty())
+    {
+        camera = getCameraByName(world, cameraName);
+    }
+    if (!camera)
+    {
+        camera = getActiveCamera(world);
+    }
+    if (!camera)
+    {
+        return Vec2(0.0f, 0.0f);
+    }
+
+    sf::Vector2u windowSizePx(0, 0);
+    if (auto* renderer = Systems::SystemLocator::tryRenderer())
+    {
+        if (auto* window = renderer->getWindow())
+        {
+            windowSizePx = window->getSize();
+        }
+    }
+
+    return Internal::screenToWorld(*camera, windowSizePx, windowPx);
+}
+
+Vec2i SCamera::worldToScreen(const World& world, std::string_view cameraName, const Vec2& worldPos) const
+{
+    const Components::CCamera* camera = nullptr;
+    if (!cameraName.empty())
+    {
+        camera = getCameraByName(world, cameraName);
+    }
+    if (!camera)
+    {
+        camera = getActiveCamera(world);
+    }
+    if (!camera)
+    {
+        return Vec2i{0, 0};
+    }
+
+    sf::Vector2u windowSizePx(0, 0);
+    if (auto* renderer = Systems::SystemLocator::tryRenderer())
+    {
+        if (auto* window = renderer->getWindow())
+        {
+            windowSizePx = window->getSize();
+        }
+    }
+
+    return Internal::worldToScreen(*camera, windowSizePx, worldPos);
 }
 
 }  // namespace Systems

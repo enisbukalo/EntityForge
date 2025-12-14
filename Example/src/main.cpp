@@ -5,6 +5,7 @@
 #include <Color.h>
 #include <Components.h>
 #include <Logger.h>
+#include <SystemLocator.h>
 
 #include <exception>
 #include <iostream>
@@ -79,6 +80,27 @@ int main()
         const Entity boat = Example::spawnBoat(world);
         (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
         (void)createBarrelSpawner(world);
+
+        // Mouse picking demo: log world-space coordinates on click.
+        (void)engine.getInputManager().subscribe(
+            [&](const InputEvent& inputEvent)
+            {
+                if (inputEvent.type != InputEventType::MouseButtonPressed)
+                {
+                    return;
+                }
+                if (inputEvent.mouse.button != MouseButton::Left)
+                {
+                    return;
+                }
+
+                const Vec2 worldPos = Systems::SystemLocator::camera().screenToWorld(world, "", inputEvent.mouse.position);
+                LOG_INFO_CONSOLE("Click px=({}, {}) -> world=({}, {})",
+                                 inputEvent.mouse.position.x,
+                                 inputEvent.mouse.position.y,
+                                 worldPos.x,
+                                 worldPos.y);
+            });
 
         LOG_INFO_CONSOLE("Game initialized!");
         LOG_INFO_CONSOLE("Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)");

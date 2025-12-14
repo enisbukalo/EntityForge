@@ -6,6 +6,8 @@
 
 #include "Entity.h"
 #include "System.h"
+#include "Vec2.h"
+#include "Vec2i.h"
 
 namespace Components
 {
@@ -37,6 +39,11 @@ public:
 
     const Components::CCamera* getActiveCamera(const World& world) const;
     const Components::CCamera* getCameraByName(const World& world, std::string_view name) const;
+
+    // Projection helpers (camera-aware world/screen conversions).
+    // These are implemented to match rendering (via Internal::buildViewFromCamera(...)).
+    Vec2  screenToWorld(const World& world, std::string_view cameraName, const Vec2i& windowPx) const;
+    Vec2i worldToScreen(const World& world, std::string_view cameraName, const Vec2& worldPos) const;
 
     bool setActiveCamera(std::string name);
 
