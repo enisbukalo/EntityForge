@@ -6,9 +6,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if clang and cpp-check are installed
-if ! command -v clang &> /dev/null; then
-    echo -e "${RED}clang could not be found!${NC}"
+# Check if clang-format and cppcheck are installed
+if ! command -v clang-format &> /dev/null; then
+    echo -e "${RED}clang-format could not be found! Please install clang-format.${NC}"
     exit 1
 fi
 
@@ -53,7 +53,7 @@ format_files() {
 
 # Function to check formatting (matches CI/CD behavior)
 check_formatting() {
-    echo -e "${YELLOW}Checking code formatting...${NC}"
+    echo -e "${YELLOW}Checking code formatting (clang-format)...${NC}"
 
     # Use find command like CI/CD does
     find . -type f \( -name "*.cpp" -o -name "*.h" \) \
