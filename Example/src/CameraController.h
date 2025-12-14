@@ -36,17 +36,17 @@ private:
 
     // Configuration
     std::string m_targetCameraName;
-    float       m_rotateSpeed = 1.0f;     // radians per second
-    float       m_zoomSpeed   = 0.3f;     // zoom units per second
-    float       m_scrollZoomSpeed = 0.05f; // zoom units per scroll tick
+    float       m_rotateSpeed     = 1.0f;   // radians per second
+    float       m_zoomSpeed       = 0.3f;   // zoom units per second
+    float       m_scrollZoomSpeed = 0.05f;  // zoom units per scroll tick
 
     // Hard zoom limits (enforced regardless of user config)
     static constexpr float kMinZoom = 0.5f;
     static constexpr float kMaxZoom = 10.0f;
 
     // Scroll wheel state
-    float  m_scrollDelta   = 0.0f;
-    size_t m_subscriberId  = 0;
+    float  m_scrollDelta  = 0.0f;
+    size_t m_subscriberId = 0;
 };
 
 }  // namespace Example

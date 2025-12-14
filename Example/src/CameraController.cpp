@@ -27,10 +27,7 @@ Entity spawnCameraController(World& world, std::string_view targetCameraName)
     return controller;
 }
 
-CameraController::CameraController(std::string_view targetCameraName)
-    : m_targetCameraName(targetCameraName)
-{
-}
+CameraController::CameraController(std::string_view targetCameraName) : m_targetCameraName(targetCameraName) {}
 
 void CameraController::onCreate(Entity self, World& world)
 {
@@ -122,10 +119,8 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
     }
 
     // --- Camera switching ---
-    const bool nextPressed = input->actionStates.count("CameraNext") &&
-                             input->actionStates.at("CameraNext") == ActionState::Pressed;
-    const bool prevPressed = input->actionStates.count("CameraPrev") &&
-                             input->actionStates.at("CameraPrev") == ActionState::Pressed;
+    const bool nextPressed = input->actionStates.count("CameraNext") && input->actionStates.at("CameraNext") == ActionState::Pressed;
+    const bool prevPressed = input->actionStates.count("CameraPrev") && input->actionStates.at("CameraPrev") == ActionState::Pressed;
 
     if (nextPressed || prevPressed)
     {
