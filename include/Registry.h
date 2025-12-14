@@ -21,7 +21,7 @@
 #include <cstdio>
 
 #include <EntityManager.h>
-#include "utility/Logger.h"
+#include "Logger.h"
 
 /**
  * @brief Type-erased interface for component storage

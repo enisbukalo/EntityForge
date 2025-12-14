@@ -273,6 +273,8 @@ class TestSystem : public Systems::ISystem
 public:
     void update(float /*deltaTime*/, World& /*world*/) override { updateCalled = true; }
 
+    std::string_view name() const override { return "TestSystem"; }
+
     bool updateCalled = false;
 };
 }

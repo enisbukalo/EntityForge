@@ -1,9 +1,8 @@
 #include "GameEngine.h"
-#include "utility/Logger.h"
 #include <cassert>
-#include <iostream>
 #include <stdexcept>
 #include <typeindex>
+#include "Logger.h"
 
 // Include all component types for registry registration
 #include <Components.h>
@@ -47,7 +46,6 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     if (!m_renderer->initialize(windowConfig))
     {
         LOG_ERROR("Failed to initialize SRenderer");
-        std::cerr << "GameEngine: failed to initialize renderer/window.\n";
         return;
     }
 

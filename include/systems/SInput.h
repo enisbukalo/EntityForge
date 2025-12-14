@@ -93,6 +93,11 @@ public:
 
     // Expose event processing for tests
     void processEvent(const sf::Event& event);
+
+    std::string_view name() const override
+    {
+        return "SInput";
+    }
 };
 
 }  // namespace Systems

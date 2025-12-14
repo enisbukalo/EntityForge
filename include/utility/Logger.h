@@ -1,15 +1,15 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <spdlog/spdlog.h>
 #include <spdlog/async.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <memory>
-#include <string>
+#include <spdlog/spdlog.h>
 #include <chrono>
-#include <iomanip>
-#include <sstream>
 #include <filesystem>
+#include <iomanip>
+#include <memory>
+#include <sstream>
+#include <string>
 
 namespace Internal
 {
@@ -193,14 +193,14 @@ using Logger = Internal::Logger;
 
 #ifndef NDEBUG
 // Debug build - all logging enabled (file only by default)
-#define LOG_INFO(...)  Internal::Logger::info(__VA_ARGS__)
+#define LOG_INFO(...) Internal::Logger::info(__VA_ARGS__)
 #define LOG_DEBUG(...) Internal::Logger::debug(__VA_ARGS__)
-#define LOG_WARN(...)  Internal::Logger::warn(__VA_ARGS__)
+#define LOG_WARN(...) Internal::Logger::warn(__VA_ARGS__)
 #else
 // Release build - only ERROR enabled
-#define LOG_INFO(...)  ((void)0)
+#define LOG_INFO(...) ((void)0)
 #define LOG_DEBUG(...) ((void)0)
-#define LOG_WARN(...)  ((void)0)
+#define LOG_WARN(...) ((void)0)
 #endif
 
 // ERROR is always enabled
@@ -209,13 +209,13 @@ using Logger = Internal::Logger;
 // Convenience macros for console output (for game developers debugging their games)
 // Usage: LOG_INFO_CONSOLE("message {}", value);
 #ifndef NDEBUG
-#define LOG_INFO_CONSOLE(...)  Internal::Logger::infoConsole(__VA_ARGS__)
+#define LOG_INFO_CONSOLE(...) Internal::Logger::infoConsole(__VA_ARGS__)
 #define LOG_DEBUG_CONSOLE(...) Internal::Logger::debugConsole(__VA_ARGS__)
-#define LOG_WARN_CONSOLE(...)  Internal::Logger::warnConsole(__VA_ARGS__)
+#define LOG_WARN_CONSOLE(...) Internal::Logger::warnConsole(__VA_ARGS__)
 #else
-#define LOG_INFO_CONSOLE(...)  ((void)0)
+#define LOG_INFO_CONSOLE(...) ((void)0)
 #define LOG_DEBUG_CONSOLE(...) ((void)0)
-#define LOG_WARN_CONSOLE(...)  ((void)0)
+#define LOG_WARN_CONSOLE(...) ((void)0)
 #endif
 
 #define LOG_ERROR_CONSOLE(...) Internal::Logger::errorConsole(__VA_ARGS__)

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include "Entity.h"
-#include "utility/Logger.h"
+#include "Logger.h"
 
 /**
  * @brief Allocates and recycles entity handles with generation counters

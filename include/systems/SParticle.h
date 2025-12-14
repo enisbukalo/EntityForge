@@ -69,6 +69,11 @@ public:
         return m_initialized;
     }
 
+    std::string_view name() const override
+    {
+        return "SParticle";
+    }
+
 private:
     /** @brief Deleted copy constructor */
     SParticle(const SParticle&) = delete;

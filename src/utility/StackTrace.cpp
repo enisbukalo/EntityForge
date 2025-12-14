@@ -2,11 +2,13 @@
 #include <sstream>
 
 #ifdef _WIN32
-#include <windows.h>
+// clang-format off
+#include <windows.h>  // Must be included before dbghelp.h
 #include <dbghelp.h>
+// clang-format on
 #else
-#include <execinfo.h>
 #include <cxxabi.h>
+#include <execinfo.h>
 #include <cstdlib>
 #endif
 
@@ -26,7 +28,7 @@ std::string StackTrace::capture(int skipFrames, int maxFrames)
 
     WORD frames = CaptureStackBackTrace(skipFrames, maxFrames, stack, NULL);
 
-    SYMBOL_INFO* symbol = (SYMBOL_INFO*)calloc(sizeof(SYMBOL_INFO) + 256 * sizeof(char), 1);
+    SYMBOL_INFO* symbol = static_cast<SYMBOL_INFO*>(calloc(sizeof(SYMBOL_INFO) + 256 * sizeof(char), 1));
     if (!symbol)
     {
         return "  [Failed to allocate symbol info]\n";
@@ -44,8 +46,8 @@ std::string StackTrace::capture(int skipFrames, int maxFrames)
     free(symbol);
 #else
     // Linux/Unix implementation
-    void* stack[64];
-    int   frames  = backtrace(stack, maxFrames + skipFrames);
+    void*  stack[64];
+    int    frames  = backtrace(stack, maxFrames + skipFrames);
     char** symbols = backtrace_symbols(stack, frames);
 
     if (symbols)
