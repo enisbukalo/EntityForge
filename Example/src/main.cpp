@@ -8,7 +8,6 @@
 
 #include <exception>
 #include <iostream>
-#include <limits>
 
 #include "AudioManager.h"
 #include "BarrelSpawner.h"
@@ -127,11 +126,6 @@ int main()
             window->close();
         }
 
-        std::cout << "\nGame ended. Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
-
         LOG_INFO_CONSOLE("Exiting normally");
         Logger::shutdown();
         return 0;
@@ -144,11 +138,6 @@ int main()
             LOG_ERROR_CONSOLE("FATAL std::exception: {}", e.what());
             Logger::shutdown();
         }
-
-        std::cerr << "Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
         return 1;
     }
     catch (...)
@@ -159,11 +148,6 @@ int main()
             LOG_ERROR_CONSOLE("FATAL unknown exception");
             Logger::shutdown();
         }
-
-        std::cerr << "Press Enter to exit...\n";
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
         return 1;
     }
 }
