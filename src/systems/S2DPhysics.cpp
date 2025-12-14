@@ -1,6 +1,8 @@
 #include "S2DPhysics.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <vector>
 #include "CCollider2D.h"
@@ -12,6 +14,80 @@
 
 namespace Systems
 {
+
+namespace
+{
+uint32_t floatBits(float v)
+{
+    uint32_t bits;
+    static_assert(sizeof(bits) == sizeof(v));
+    std::memcpy(&bits, &v, sizeof(v));
+    return bits;
+}
+
+uint64_t fnv1a64(uint64_t hash, uint64_t data)
+{
+    constexpr uint64_t prime = 1099511628211ull;
+    hash ^= data;
+    hash *= prime;
+    return hash;
+}
+
+uint64_t hashCollider(const ::Components::CCollider2D& collider)
+{
+    uint64_t hash = 1469598103934665603ull;
+
+    hash = fnv1a64(hash, collider.sensor ? 1ull : 0ull);
+    hash = fnv1a64(hash, floatBits(collider.density));
+    hash = fnv1a64(hash, floatBits(collider.friction));
+    hash = fnv1a64(hash, floatBits(collider.restitution));
+    hash = fnv1a64(hash, static_cast<uint64_t>(collider.fixtures.size()));
+
+    for (const auto& fixture : collider.fixtures)
+    {
+        hash = fnv1a64(hash, static_cast<uint64_t>(fixture.shapeType));
+        switch (fixture.shapeType)
+        {
+            case ::Components::ColliderShape::Circle:
+                hash = fnv1a64(hash, floatBits(fixture.circle.center.x));
+                hash = fnv1a64(hash, floatBits(fixture.circle.center.y));
+                hash = fnv1a64(hash, floatBits(fixture.circle.radius));
+                break;
+            case ::Components::ColliderShape::Box:
+                hash = fnv1a64(hash, floatBits(fixture.box.halfWidth));
+                hash = fnv1a64(hash, floatBits(fixture.box.halfHeight));
+                break;
+            case ::Components::ColliderShape::Polygon:
+                hash = fnv1a64(hash, static_cast<uint64_t>(fixture.polygon.vertices.size()));
+                for (const auto& v : fixture.polygon.vertices)
+                {
+                    hash = fnv1a64(hash, floatBits(v.x));
+                    hash = fnv1a64(hash, floatBits(v.y));
+                }
+                hash = fnv1a64(hash, floatBits(fixture.polygon.radius));
+                break;
+            case ::Components::ColliderShape::Segment:
+                hash = fnv1a64(hash, floatBits(fixture.segment.point1.x));
+                hash = fnv1a64(hash, floatBits(fixture.segment.point1.y));
+                hash = fnv1a64(hash, floatBits(fixture.segment.point2.x));
+                hash = fnv1a64(hash, floatBits(fixture.segment.point2.y));
+                break;
+            case ::Components::ColliderShape::ChainSegment:
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost1.x));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost1.y));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.point1.x));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.point1.y));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.point2.x));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.point2.y));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost2.x));
+                hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost2.y));
+                break;
+        }
+    }
+
+    return hash;
+}
+}  // namespace
 
 S2DPhysics::S2DPhysics() : m_timeStep(1.0f / 60.0f), m_subStepCount(6)
 {
@@ -60,7 +136,7 @@ void S2DPhysics::update(float deltaTime, World& world)
                 destroyShapes(entity);
             }
 
-            syncFromTransform(entity, transform);
+            syncFromTransform(entity, transform, body);
         });
 
     b2World_Step(m_worldId, m_timeStep, m_subStepCount);
@@ -147,6 +223,8 @@ void S2DPhysics::destroyShapes(Entity entity)
         }
         m_chains.erase(chainsIt);
     }
+
+    m_colliderHashes.erase(entity);
 }
 
 void S2DPhysics::ensureShapesForEntity(Entity entity, const ::Components::CCollider2D& collider)
@@ -163,13 +241,22 @@ void S2DPhysics::ensureShapesForEntity(Entity entity, const ::Components::CColli
         return;
     }
 
-    // Simplest sync strategy: rebuild shapes every update.
-    destroyShapes(entity);
-
     if (collider.fixtures.empty())
+    {
+        destroyShapes(entity);
+        return;
+    }
+
+    const uint64_t currentHash = hashCollider(collider);
+    const auto     hashIt      = m_colliderHashes.find(entity);
+    const bool     hasShapes   = (m_shapes.find(entity) != m_shapes.end());
+    if (hashIt != m_colliderHashes.end() && hashIt->second == currentHash && hasShapes)
     {
         return;
     }
+
+    destroyShapes(entity);
+    m_colliderHashes[entity] = currentHash;
 
     b2ShapeDef shapeDef           = b2DefaultShapeDef();
     shapeDef.density              = collider.density;
@@ -423,7 +510,7 @@ void S2DPhysics::clearFixedUpdateCallback(Entity entity)
     m_fixedCallbacks.erase(entity);
 }
 
-void S2DPhysics::syncFromTransform(Entity entity, const ::Components::CTransform& transform)
+void S2DPhysics::syncFromTransform(Entity entity, const ::Components::CTransform& transform, const ::Components::CPhysicsBody2D& body)
 {
     const b2BodyId bodyId = getBody(entity);
     if (!b2Body_IsValid(bodyId))
@@ -431,8 +518,34 @@ void S2DPhysics::syncFromTransform(Entity entity, const ::Components::CTransform
         return;
     }
 
-    b2Body_SetTransform(bodyId, {transform.position.x, transform.position.y}, b2MakeRot(transform.rotation));
-    b2Body_SetLinearVelocity(bodyId, {transform.velocity.x, transform.velocity.y});
+    if (body.bodyType != ::Components::BodyType::Dynamic)
+    {
+        b2Body_SetTransform(bodyId, {transform.position.x, transform.position.y}, b2MakeRot(transform.rotation));
+        b2Body_SetLinearVelocity(bodyId, {transform.velocity.x, transform.velocity.y});
+        return;
+    }
+
+    const b2Vec2 bodyPos   = b2Body_GetPosition(bodyId);
+    const float  bodyAngle = b2Rot_GetAngle(b2Body_GetRotation(bodyId));
+    const b2Vec2 bodyVel   = b2Body_GetLinearVelocity(bodyId);
+
+    const float dx        = transform.position.x - bodyPos.x;
+    const float dy        = transform.position.y - bodyPos.y;
+    const float posDiffSq = (dx * dx) + (dy * dy);
+
+    const float dang    = transform.rotation - bodyAngle;
+    const float dvelx   = transform.velocity.x - bodyVel.x;
+    const float dvely   = transform.velocity.y - bodyVel.y;
+    const float velDiff = (dvelx * dvelx) + (dvely * dvely);
+
+    constexpr float kPosEpsSq = 1e-8f;
+    constexpr float kAngleEps = 1e-4f;
+    constexpr float kVelEpsSq = 1e-8f;
+    if (posDiffSq > kPosEpsSq || std::fabs(dang) > kAngleEps || velDiff > kVelEpsSq)
+    {
+        b2Body_SetTransform(bodyId, {transform.position.x, transform.position.y}, b2MakeRot(transform.rotation));
+        b2Body_SetLinearVelocity(bodyId, {transform.velocity.x, transform.velocity.y});
+    }
 }
 
 void S2DPhysics::syncToTransform(Entity entity, ::Components::CTransform& transform)

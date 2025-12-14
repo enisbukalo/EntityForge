@@ -47,6 +47,12 @@ target_link_libraries(unit_tests PRIVATE
     ImGui-SFML
 )
 
+# When coverage flags are enabled, link with gcov to resolve coverage symbols
+# from dependencies that may have been built with coverage instrumentation.
+if(CMAKE_CXX_FLAGS MATCHES "--coverage" OR CMAKE_C_FLAGS MATCHES "--coverage")
+    target_link_libraries(unit_tests PRIVATE gcov)
+endif()
+
 # Link Windows-specific libraries only when building for Windows
 if(WIN32 OR MINGW)
     target_link_libraries(unit_tests PRIVATE

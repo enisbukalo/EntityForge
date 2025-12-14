@@ -42,6 +42,7 @@ generate_coverage_report() {
         -DCMAKE_CXX_FLAGS="--coverage" \
         -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
         -DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+        -DDEPS_CACHE_DIR="${PWD}/deps_cache_linux_coverage" \
         || { echo -e "${YELLOW}Coverage configuration failed; skipping coverage.${NC}"; return 0; }
 
     echo -e "${GREEN}Building coverage targets...${NC}"

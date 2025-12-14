@@ -21,6 +21,11 @@ constexpr float kBarrelColliderRestitution = 0.0f;
 constexpr float kBarrelLinearDamping       = 1.5f;
 constexpr float kBarrelAngularDamping      = 2.0f;
 constexpr float kBarrelGravityScale        = 1.0f;
+constexpr float kMinSpraySpeed             = 0.05f;
+constexpr float kMaxSpraySpeed             = 0.75f;
+constexpr float kMaxEmissionRate           = 1250f;
+constexpr float kMinSpeed                  = 0.05f;
+constexpr float kMaxSpeed                  = 0.75f;
 constexpr int   kBarrelZIndex              = 10;
 constexpr int   kBarrelSprayZIndex         = 9;
 
@@ -29,8 +34,8 @@ Components::CParticleEmitter makeBarrelSprayEmitter()
     Components::CParticleEmitter e;
     e.setDirection(Vec2(0.0f, 1.0f));
     e.setSpreadAngle(0.5f);
-    e.setMinSpeed(0.15f);
-    e.setMaxSpeed(0.5f);
+    e.setMinSpeed(kMinSpeed);
+    e.setMaxSpeed(kMaxSpeed);
     e.setMinLifetime(0.5f);
     e.setMaxLifetime(2.0f);
     e.setMinSize(0.006f);
@@ -74,10 +79,10 @@ public:
         const b2Vec2 vel   = Systems::SystemLocator::physics().getLinearVelocity(self);
         const float  speed = std::sqrt((vel.x * vel.x) + (vel.y * vel.y));
 
-        const float MIN_SPEED_FOR_SPRAY = 0.05f;
-        const float MAX_SPEED_FOR_SPRAY = 2.0f;
+        const float MIN_SPEED_FOR_SPRAY = kMinSpraySpeed;
+        const float MAX_SPEED_FOR_SPRAY = kMaxSpraySpeed;
         const float MIN_EMISSION_RATE   = 0.0f;
-        const float MAX_EMISSION_RATE   = 1250.0f;
+        const float MAX_EMISSION_RATE   = kMaxEmissionRate;
 
         float emissionRate = 0.0f;
         if (speed > MIN_SPEED_FOR_SPRAY)
@@ -86,9 +91,9 @@ public:
             normalizedSpeed       = std::min(1.0f, std::max(0.0f, normalizedSpeed));
             emissionRate = MIN_EMISSION_RATE + (MAX_EMISSION_RATE - MIN_EMISSION_RATE) * (normalizedSpeed * normalizedSpeed);
 
-            float speedMultiplier = 0.5f + (normalizedSpeed * 0.5f);
-            emitter->setMinSpeed(0.15f * speedMultiplier);
-            emitter->setMaxSpeed(0.5f * speedMultiplier);
+            float speedMultiplier = kMaxSpeed + (normalizedSpeed * kMaxSpeed);
+            emitter->setMinSpeed(kMinSpeed * speedMultiplier);
+            emitter->setMaxSpeed(kMaxSpeed * speedMultiplier);
         }
 
         emitter->setEmissionRate(emissionRate);

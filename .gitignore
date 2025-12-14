@@ -10,6 +10,7 @@ package_linux/
 package_windows/
 deps_cache_linux/
 deps_cache_windows/
+deps_cache_linux_coverage/
 out/
 CMakeFiles/
 Debug/

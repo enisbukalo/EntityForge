@@ -22,15 +22,9 @@ fi
 format_files() {
     echo -e "${YELLOW}Formatting files...${NC}"
 
-    # Use the same find filter as check_formatting so untracked files are also formatted
-    files_to_format=$(find . -type f \( -name "*.cpp" -o -name "*.h" \) \
-        -not -path "./build/*" \
-        -not -path "./build_linux/*" \
-        -not -path "./build_windows/*" \
-        -not -path "./deps_cache*/*" \
-        -not -path "./package*/*" \
-        -not -path "./coverage_report/*" \
-        -not -path "./tests/*")
+    # Only format engine + Example sources
+    files_to_format=$(find src include Example -type f \( -name "*.cpp" -o -name "*.h" \) \
+        -not -path "Example/build/*")
 
     if [ -z "$files_to_format" ]; then
         echo -e "${YELLOW}No files to format${NC}"
@@ -55,15 +49,9 @@ format_files() {
 check_formatting() {
     echo -e "${YELLOW}Checking code formatting (clang-format)...${NC}"
 
-    # Use find command like CI/CD does
-    find . -type f \( -name "*.cpp" -o -name "*.h" \) \
-        -not -path "./build/*" \
-        -not -path "./build_linux/*" \
-        -not -path "./build_windows/*" \
-        -not -path "./deps_cache*/*" \
-        -not -path "./package*/*" \
-        -not -path "./coverage_report/*" \
-        -not -path "./tests/*" \
+    # Only check engine + Example sources
+    find src include Example -type f \( -name "*.cpp" -o -name "*.h" \) \
+        -not -path "Example/build/*" \
         -exec clang-format -style=file --dry-run --Werror {} +
 
     local result=$?
@@ -94,10 +82,7 @@ static_analysis() {
 EOF
 
     # Get list of tracked source and header files
-    tracked_files=$(git ls-files '*.cpp' '*.h')
-
-    # Ignore all of the files in the tests/ directory
-    tracked_files=$(echo "$tracked_files" | grep -v '^tests/')
+    tracked_files=$(git ls-files | grep -E '^(src|include|Example)/.*\.(cpp|h)$')
 
     if [ -z "$tracked_files" ]; then
         echo -e "${YELLOW}No files to analyze${NC}"
