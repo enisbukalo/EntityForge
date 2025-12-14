@@ -25,61 +25,94 @@ uint32_t floatBits(float v)
     return bits;
 }
 
+// cppcheck-suppress passedByValue
 uint64_t fnv1a64(uint64_t hash, uint64_t data)
 {
     constexpr uint64_t prime = 1099511628211ull;
+    // cppcheck-suppress unreadVariable
     hash ^= data;
+    // cppcheck-suppress uselessAssignmentArg
+    // cppcheck-suppress unreadVariable
     hash *= prime;
     return hash;
 }
 
+// Incremental FNV-1a hashing: each call reads the previous hash value.
+// cppcheck false-positives: fnv1a64(hash, x) reads hash before returning new value.
 uint64_t hashCollider(const ::Components::CCollider2D& collider)
 {
     uint64_t hash = 1469598103934665603ull;
 
+    // cppcheck-suppress redundantAssignment
     hash = fnv1a64(hash, collider.sensor ? 1ull : 0ull);
+    // cppcheck-suppress redundantAssignment
     hash = fnv1a64(hash, floatBits(collider.density));
+    // cppcheck-suppress redundantAssignment
     hash = fnv1a64(hash, floatBits(collider.friction));
+    // cppcheck-suppress redundantAssignment
     hash = fnv1a64(hash, floatBits(collider.restitution));
+    // cppcheck-suppress redundantAssignment
     hash = fnv1a64(hash, static_cast<uint64_t>(collider.fixtures.size()));
 
     for (const auto& fixture : collider.fixtures)
     {
+        // cppcheck-suppress redundantAssignment
         hash = fnv1a64(hash, static_cast<uint64_t>(fixture.shapeType));
         switch (fixture.shapeType)
         {
             case ::Components::ColliderShape::Circle:
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.circle.center.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.circle.center.y));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.circle.radius));
                 break;
             case ::Components::ColliderShape::Box:
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.box.halfWidth));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.box.halfHeight));
                 break;
             case ::Components::ColliderShape::Polygon:
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, static_cast<uint64_t>(fixture.polygon.vertices.size()));
                 for (const auto& v : fixture.polygon.vertices)
                 {
+                    // cppcheck-suppress redundantAssignment
                     hash = fnv1a64(hash, floatBits(v.x));
+                    // cppcheck-suppress redundantAssignment
                     hash = fnv1a64(hash, floatBits(v.y));
                 }
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.polygon.radius));
                 break;
             case ::Components::ColliderShape::Segment:
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.segment.point1.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.segment.point1.y));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.segment.point2.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.segment.point2.y));
                 break;
             case ::Components::ColliderShape::ChainSegment:
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost1.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost1.y));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.point1.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.point1.y));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.point2.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.point2.y));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost2.x));
+                // cppcheck-suppress redundantAssignment
                 hash = fnv1a64(hash, floatBits(fixture.chainSegment.ghost2.y));
                 break;
         }
