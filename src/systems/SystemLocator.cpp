@@ -2,6 +2,7 @@
 
 #include "S2DPhysics.h"
 #include "SAudio.h"
+#include "SCamera.h"
 #include "SInput.h"
 #include "SParticle.h"
 #include "SRenderer.h"
@@ -16,6 +17,7 @@ S2DPhysics* g_physics  = nullptr;
 SRenderer*  g_renderer = nullptr;
 SParticle*  g_particle = nullptr;
 SAudio*     g_audio    = nullptr;
+SCamera*    g_camera   = nullptr;
 }  // namespace
 
 void SystemLocator::provideInput(SInput* input)
@@ -41,6 +43,11 @@ void SystemLocator::provideParticle(SParticle* particle)
 void SystemLocator::provideAudio(SAudio* audio)
 {
     g_audio = audio;
+}
+
+void SystemLocator::provideCamera(SCamera* camera)
+{
+    g_camera = camera;
 }
 
 SInput& SystemLocator::input()
@@ -73,6 +80,12 @@ SAudio& SystemLocator::audio()
     return *g_audio;
 }
 
+SCamera& SystemLocator::camera()
+{
+    assert(g_camera && "Camera system not set");
+    return *g_camera;
+}
+
 SInput* SystemLocator::tryInput()
 {
     return g_input;
@@ -96,6 +109,11 @@ SParticle* SystemLocator::tryParticle()
 SAudio* SystemLocator::tryAudio()
 {
     return g_audio;
+}
+
+SCamera* SystemLocator::tryCamera()
+{
+    return g_camera;
 }
 
 }  // namespace Systems

@@ -13,6 +13,7 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
       m_input(std::make_unique<Systems::SInput>()),
       m_script(std::make_unique<Systems::SScript>()),
       m_physics(std::make_unique<Systems::S2DPhysics>()),
+      m_camera(std::make_unique<Systems::SCamera>()),
       m_particle(std::make_unique<Systems::SParticle>()),
       m_audio(std::make_unique<Systems::SAudio>()),
       m_subStepCount(subStepCount),
@@ -22,6 +23,7 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     Systems::SystemLocator::provideRenderer(m_renderer.get());
     Systems::SystemLocator::provideInput(m_input.get());
     Systems::SystemLocator::providePhysics(m_physics.get());
+    Systems::SystemLocator::provideCamera(m_camera.get());
     Systems::SystemLocator::provideParticle(m_particle.get());
     Systems::SystemLocator::provideAudio(m_audio.get());
 
@@ -85,9 +87,9 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // Note: Users can re-initialize with different scale if needed
     m_particle->initialize(m_renderer->getWindow(), pixelsPerMeter);
 
-    // Maintain ordered list for per-frame updates (input -> scripts -> physics -> particle -> audio)
+    // Maintain ordered list for per-frame updates (input -> scripts -> physics -> camera -> particle -> audio)
     // Audio is marked as PostFlush via ISystem::stage().
-    m_systemOrder = {m_input.get(), m_script.get(), m_physics.get(), m_particle.get(), m_audio.get()};
+    m_systemOrder = {m_input.get(), m_script.get(), m_physics.get(), m_camera.get(), m_particle.get(), m_audio.get()};
 
     LOG_INFO("All core systems initialized");
 }
@@ -221,6 +223,7 @@ void GameEngine::registerComponentTypes()
     m_world.registerTypeName<CName>("CName");
     m_world.registerTypeName<CInputController>("CInputController");
     m_world.registerTypeName<CParticleEmitter>("CParticleEmitter");
+    m_world.registerTypeName<CCamera>("CCamera");
     m_world.registerTypeName<CNativeScript>("CNativeScript");
     m_world.registerTypeName<CAudioSource>("CAudioSource");
     m_world.registerTypeName<CAudioListener>("CAudioListener");
@@ -259,6 +262,7 @@ void GameEngine::validateComponentTypeNames()
     validate(CName{}, "CName");
     validate(CInputController{}, "CInputController");
     validate(CParticleEmitter{}, "CParticleEmitter");
+    validate(CCamera{}, "CCamera");
     validate(CNativeScript{}, "CNativeScript");
     validate(CAudioSource{}, "CAudioSource");
     validate(CAudioListener{}, "CAudioListener");

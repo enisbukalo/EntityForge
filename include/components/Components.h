@@ -18,6 +18,9 @@
 #include "CInputController.h"
 #include "CParticleEmitter.h"
 
+// Camera
+#include "CCamera.h"
+
 // Scripting / behaviours
 #include "CNativeScript.h"
 

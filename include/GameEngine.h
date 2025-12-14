@@ -13,6 +13,7 @@
 // Include system and manager headers
 #include <S2DPhysics.h>
 #include <SAudio.h>
+#include <SCamera.h>
 #include <SInput.h>
 #include <SParticle.h>
 #include <SRenderer.h>
@@ -154,6 +155,7 @@ private:
     std::unique_ptr<Systems::SInput>     m_input;     ///< Input system owned by engine
     std::unique_ptr<Systems::SScript>    m_script;    ///< Script system owned by engine
     std::unique_ptr<Systems::S2DPhysics> m_physics;   ///< Physics system owned by engine
+    std::unique_ptr<Systems::SCamera>    m_camera;    ///< Camera system owned by engine
     std::unique_ptr<Systems::SParticle>  m_particle;  ///< Particle system owned by engine
     std::unique_ptr<Systems::SAudio>     m_audio;     ///< Audio system owned by engine
 
