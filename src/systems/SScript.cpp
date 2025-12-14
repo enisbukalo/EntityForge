@@ -35,8 +35,6 @@ void Systems::SScript::update(float deltaTime, World& world)
         if (!script->created)
         {
             script->instance->onCreate(entity, world);
-            script->created = true;
-
             // Re-fetch script pointer after onCreate because the component store may have
             // reallocated if new scripts were added during onCreate (e.g., spawning entities)
             script = world.components().tryGet<Components::CNativeScript>(entity);
@@ -45,6 +43,8 @@ void Systems::SScript::update(float deltaTime, World& world)
                 entityIndex++;
                 continue;
             }
+
+            script->created = true;
         }
 
         script->instance->onUpdate(deltaTime, entity, world);
