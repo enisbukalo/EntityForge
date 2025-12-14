@@ -3,11 +3,11 @@
 #include <cmath>
 #include <World.h>
 
-#include <components/CNativeScript.h>
-#include <components/CPhysicsBody2D.h>
-#include <components/CTransform.h>
-#include <systems/S2DPhysics.h>
-#include <systems/SScript.h>
+#include <CNativeScript.h>
+#include <CPhysicsBody2D.h>
+#include <CTransform.h>
+#include <S2DPhysics.h>
+#include <SScript.h>
 
 namespace
 {

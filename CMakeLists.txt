@@ -228,10 +228,8 @@ target_link_libraries(GameEngine
     box2d
 )
 
-# spdlog is linked publicly since Logger.h (part of the public API) includes spdlog headers.
-# Consumers that include EntityManager.h, Registry.h, etc. will transitively get Logger.h.
 target_link_libraries(GameEngine
-    PUBLIC
+    PRIVATE
     spdlog::spdlog
 )
 
@@ -305,9 +303,10 @@ if(GAMEENGINE_INSTALL)
         "include(CMakeFindDependencyMacro)\n\n"
         "# Find dependencies\n"
         "find_dependency(Threads)\n"
-        "find_dependency(SFML 2.6 COMPONENTS graphics window system)\n"
+        "find_dependency(SFML 2.6 COMPONENTS graphics window system audio)\n"
         "find_dependency(OpenGL)\n"
         "find_dependency(box2d)\n"
+        "find_dependency(spdlog)\n"
         "\n"
         "# Include the targets file\n"
         "include(\"\${CMAKE_CURRENT_LIST_DIR}/GameEngineTargets.cmake\")\n"

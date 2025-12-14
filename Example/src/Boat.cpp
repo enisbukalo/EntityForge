@@ -1,8 +1,4 @@
-#include "BoatEntity.h"
-
-#include "InputHelpers.h"
-
-#include <iostream>
+#include "Boat.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,6 +8,7 @@
 #include <ActionBinding.h>
 #include <Color.h>
 #include <Components.h>
+#include <Logger.h>
 #include <S2DPhysics.h>
 #include <SAudio.h>
 #include <SystemLocator.h>
@@ -82,7 +79,7 @@ Entity spawnBoat(World& world)
     world.components().add<Components::CInputController>(boat);
 
     auto* script = world.components().add<Components::CNativeScript>(boat);
-    script->bind<Example::BoatScript>();
+    script->bind<Example::Boat>();
 
     return boat;
 }
@@ -170,7 +167,7 @@ Components::CParticleEmitter makeHullSprayEmitter()
 
 }  // namespace
 
-void BoatScript::onCreate(Entity self, World& world)
+void Boat::onCreate(Entity self, World& world)
 {
     auto* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
@@ -183,11 +180,11 @@ void BoatScript::onCreate(Entity self, World& world)
     setupParticles(self, world);
     setupFixedMovement(self, world);
 
-    std::cout << "Controls:\n"
-              << "  WASD : Move player boat (W/S = forward/back, A/D = rotate)\n";
+    LOG_INFO_CONSOLE("Controls:");
+    LOG_INFO_CONSOLE("  WASD : Move player boat (W/S = forward/back, A/D = rotate)");
 }
 
-void BoatScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
+void Boat::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
     auto* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
@@ -197,8 +194,8 @@ void BoatScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
 
     auto& audio = Systems::SystemLocator::audio();
 
-    const bool forward  = isActionActive(*input, "MoveForward");
-    const bool backward = isActionActive(*input, "MoveBackward");
+    const bool forward  = input->isActionActive("MoveForward");
+    const bool backward = input->isActionActive("MoveBackward");
 
     if (forward || backward)
     {
@@ -247,7 +244,7 @@ void BoatScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
     }
 }
 
-void BoatScript::setupParticles(Entity self, World& world)
+void Boat::setupParticles(Entity self, World& world)
 {
     auto*       boatTransform = world.components().tryGet<Components::CTransform>(self);
     const Vec2  pos           = boatTransform ? boatTransform->getPosition() : Vec2{0.0f, 0.0f};
@@ -265,7 +262,7 @@ void BoatScript::setupParticles(Entity self, World& world)
     }
 }
 
-void BoatScript::setupFixedMovement(Entity self, World& world)
+void Boat::setupFixedMovement(Entity self, World& world)
 {
     World* worldPtr = &world;
     auto&  physics  = Systems::SystemLocator::physics();
@@ -286,10 +283,10 @@ void BoatScript::setupFixedMovement(Entity self, World& world)
                 return;
             }
 
-            const bool forward  = isActionActive(*input, "MoveForward");
-            const bool backward = isActionActive(*input, "MoveBackward");
-            const bool left     = isActionActive(*input, "RotateLeft");
-            const bool right    = isActionActive(*input, "RotateRight");
+            const bool forward  = input->isActionActive("MoveForward");
+            const bool backward = input->isActionActive("MoveBackward");
+            const bool left     = input->isActionActive("RotateLeft");
+            const bool right    = input->isActionActive("RotateRight");
 
             auto& physics = Systems::SystemLocator::physics();
 
@@ -367,7 +364,7 @@ void BoatScript::setupFixedMovement(Entity self, World& world)
         });
 }
 
-void BoatScript::bindMovement(Components::CInputController& input)
+void Boat::bindMovement(Components::CInputController& input)
 {
     {
         ActionBinding b;

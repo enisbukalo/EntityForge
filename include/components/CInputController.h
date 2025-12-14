@@ -30,6 +30,21 @@ struct CInputController
 
     // Latest known action states (filled by systems)
     std::unordered_map<std::string, ActionState> actionStates;
+
+    /**
+     * @brief Check if an action is currently active (Pressed or Held).
+     * @param action The action name to check.
+     * @return true if the action state is Pressed or Held, false otherwise.
+     */
+    bool isActionActive(const std::string& action) const
+    {
+        auto it = actionStates.find(action);
+        if (it == actionStates.end())
+        {
+            return false;
+        }
+        return it->second == ActionState::Pressed || it->second == ActionState::Held;
+    }
 };
 
 }  // namespace Components

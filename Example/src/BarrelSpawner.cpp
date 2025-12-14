@@ -1,13 +1,13 @@
 #include "BarrelSpawner.h"
 
-#include "BarrelEntity.h"
+#include "Barrel.h"
 
 #include <World.h>
 
 namespace Example
 {
 
-BarrelSpawnerScript::BarrelSpawnerScript(float minX, float maxX, float minY, float maxY, size_t count)
+BarrelSpawner::BarrelSpawner(float minX, float maxX, float minY, float maxY, size_t count)
     : m_minX(minX),
       m_maxX(maxX),
       m_minY(minY),
@@ -19,7 +19,7 @@ BarrelSpawnerScript::BarrelSpawnerScript(float minX, float maxX, float minY, flo
 {
 }
 
-void BarrelSpawnerScript::onCreate(Entity /*self*/, World& world)
+void BarrelSpawner::onCreate(Entity /*self*/, World& world)
 {
     for (size_t i = 0; i < m_barrelCount; ++i)
     {
@@ -28,6 +28,6 @@ void BarrelSpawnerScript::onCreate(Entity /*self*/, World& world)
     }
 }
 
-void BarrelSpawnerScript::onUpdate(float /*deltaTime*/, Entity /*self*/, World& /*world*/) {}
+void BarrelSpawner::onUpdate(float /*deltaTime*/, Entity /*self*/, World& /*world*/) {}
 
 }  // namespace Example

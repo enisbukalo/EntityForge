@@ -5,7 +5,7 @@
 namespace Example
 {
 
-class AudioManagerScript final : public Components::INativeScript
+class AudioManager final : public Components::INativeScript
 {
 public:
     void onCreate(Entity self, World& world) override;
