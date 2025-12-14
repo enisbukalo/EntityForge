@@ -13,6 +13,7 @@
 #include "AudioManager.h"
 #include "BarrelSpawner.h"
 #include "Boat.h"
+#include "CameraController.h"
 #include "MainCamera.h"
 
 using namespace Systems;
@@ -79,6 +80,7 @@ int main()
         (void)createAudioManager(world);
         const Entity boat = Example::spawnBoat(world);
         (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
+        (void)Example::spawnCameraController(world, "Main");
         (void)createBarrelSpawner(world);
 
         // Mouse picking demo: log world-space coordinates on click.
