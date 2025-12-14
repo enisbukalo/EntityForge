@@ -1,10 +1,10 @@
 #include "SParticle.h"
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include <random>
 #include "CParticleEmitter.h"
 #include "CTransform.h"
+#include "Logger.h"
 #include "Registry.h"
 #include "World.h"
 
@@ -27,7 +27,7 @@ const sf::Texture* SParticle::loadTexture(const std::string& filepath)
     sf::Texture texture;
     if (!texture.loadFromFile(filepath))
     {
-        std::cerr << "SParticle: Failed to load texture from '" << filepath << "'\n";
+        LOG_ERROR("SParticle: Failed to load texture from '{}'", filepath);
         return nullptr;
     }
 
@@ -454,6 +454,7 @@ bool SParticle::initialize(sf::RenderWindow* window, float pixelsPerMeter)
     m_window         = window;
     m_pixelsPerMeter = pixelsPerMeter;
     m_initialized    = true;
+    LOG_INFO("SParticle: Initialized with pixelsPerMeter={}", pixelsPerMeter);
     return true;
 }
 
@@ -461,6 +462,7 @@ void SParticle::shutdown()
 {
     m_initialized = false;
     m_window      = nullptr;
+    LOG_INFO("SParticle: Shutdown complete");
 }
 
 void SParticle::update(float deltaTime, World& world)

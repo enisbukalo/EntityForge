@@ -1,13 +1,11 @@
 #include "AudioManager.h"
 
-#include "InputHelpers.h"
-
 #include <algorithm>
-#include <iostream>
 
 #include <ActionBinding.h>
 #include <AudioTypes.h>
 #include <Components.h>
+#include <Logger.h>
 #include <SAudio.h>
 #include <SystemLocator.h>
 #include <World.h>
@@ -15,14 +13,14 @@
 namespace Example
 {
 
-void AudioManagerScript::onCreate(Entity self, World& world)
+void AudioManager::onCreate(Entity self, World& world)
 {
     auto& audio = Systems::SystemLocator::audio();
 
     // Set initial master volume (matches the old Example defaults)
     audio.setMasterVolume(kInitialMasterVolume);
     m_currentMasterVolume = kInitialMasterVolume;
-    std::cout << "AudioManager: Master volume set to " << static_cast<int>(m_currentMasterVolume * 100.0f) << "%" << std::endl;
+    LOG_INFO_CONSOLE("AudioManager: Master volume set to {}%", static_cast<int>(m_currentMasterVolume * 100.0f));
 
     // Load audio assets
     audio.loadSound("background_music", "assets/audio/rainyday.mp3", AudioType::Music);
@@ -55,10 +53,10 @@ void AudioManagerScript::onCreate(Entity self, World& world)
         input->bindings["VolumeDown"].push_back({down, 0});
     }
 
-    std::cout << "Audio initialized. Use Up/Down arrows to adjust volume." << std::endl;
+    LOG_INFO_CONSOLE("Audio initialized. Use Up/Down arrows to adjust volume.");
 }
 
-void AudioManagerScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
+void AudioManager::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
     auto* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
@@ -66,21 +64,21 @@ void AudioManagerScript::onUpdate(float /*deltaTime*/, Entity self, World& world
         return;
     }
 
-    if (isActionActive(*input, "VolumeUp"))
+    if (input->isActionActive("VolumeUp"))
     {
         adjustMasterVolume(+kVolumeStep);
     }
-    if (isActionActive(*input, "VolumeDown"))
+    if (input->isActionActive("VolumeDown"))
     {
         adjustMasterVolume(-kVolumeStep);
     }
 }
 
-void AudioManagerScript::adjustMasterVolume(float delta)
+void AudioManager::adjustMasterVolume(float delta)
 {
     m_currentMasterVolume = std::clamp(m_currentMasterVolume + delta, 0.0f, 1.0f);
     Systems::SystemLocator::audio().setMasterVolume(m_currentMasterVolume);
-    std::cout << "Master volume: " << static_cast<int>(m_currentMasterVolume * 100.0f) << "%" << std::endl;
+    LOG_INFO_CONSOLE("Master volume: {}%", static_cast<int>(m_currentMasterVolume * 100.0f));
 }
 
 }  // namespace Example

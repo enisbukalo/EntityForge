@@ -3,11 +3,11 @@
 #include <cmath>
 #include <World.h>
 
-#include <components/CNativeScript.h>
-#include <components/CPhysicsBody2D.h>
-#include <components/CTransform.h>
-#include <systems/S2DPhysics.h>
-#include <systems/SScript.h>
+#include <CNativeScript.h>
+#include <CPhysicsBody2D.h>
+#include <CTransform.h>
+#include <S2DPhysics.h>
+#include <SScript.h>
 
 namespace
 {
@@ -272,6 +272,8 @@ class TestSystem : public Systems::ISystem
 {
 public:
     void update(float /*deltaTime*/, World& /*world*/) override { updateCalled = true; }
+
+    std::string_view name() const override { return "TestSystem"; }
 
     bool updateCalled = false;
 };

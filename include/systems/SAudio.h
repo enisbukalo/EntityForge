@@ -77,6 +77,11 @@ public:
         return UpdateStage::PostFlush;
     }
 
+    std::string_view name() const override
+    {
+        return "SAudio";
+    }
+
     /**
      * @brief ECS-driven audio update that consumes component data
      */

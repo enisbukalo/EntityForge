@@ -6,6 +6,7 @@
 #include "CCollider2D.h"
 #include "CPhysicsBody2D.h"
 #include "CTransform.h"
+#include "Logger.h"
 #include "Vec2.h"
 #include "World.h"
 
@@ -17,10 +18,12 @@ S2DPhysics::S2DPhysics() : m_timeStep(1.0f / 60.0f), m_subStepCount(6)
     b2WorldDef worldDef = b2DefaultWorldDef();
     worldDef.gravity    = {0.0f, -10.0f};
     m_worldId           = b2CreateWorld(&worldDef);
+    LOG_INFO("S2DPhysics: Initialized with timeStep={}, subStepCount={}", m_timeStep, m_subStepCount);
 }
 
 S2DPhysics::~S2DPhysics()
 {
+    LOG_INFO("S2DPhysics: Shutting down, destroying {} bodies", m_bodies.size());
     m_shapes.clear();
     m_chains.clear();
     m_bodies.clear();

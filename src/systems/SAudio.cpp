@@ -1,10 +1,10 @@
 #include "SAudio.h"
 
-#include <spdlog/spdlog.h>
 #include <algorithm>
 
 #include "CAudioListener.h"
 #include "CAudioSource.h"
+#include "Logger.h"
 #include "World.h"
 
 #ifndef _WIN32
@@ -56,6 +56,7 @@ bool SAudio::initialize()
 #endif
 
     m_initialized = true;
+    LOG_INFO("SAudio: Initialized with sound pool size {}", m_soundPool.size());
     return true;
 }
 
@@ -92,13 +93,14 @@ void SAudio::shutdownInternal()
     m_musicPaths.clear();
     m_currentMusicId.clear();
     m_initialized = false;
+    LOG_INFO("SAudio: Shutdown complete");
 }
 
 bool SAudio::loadSound(const std::string& id, const std::string& filepath, AudioType type)
 {
     if (!m_initialized)
     {
-        spdlog::error("Cannot load sound: audio system not initialized");
+        LOG_ERROR("Cannot load sound: audio system not initialized");
         return false;
     }
 
@@ -133,15 +135,17 @@ bool SAudio::loadSound(const std::string& id, const std::string& filepath, Audio
 
         if (!success)
         {
-            spdlog::error("Failed to load sound buffer from file: {}", filepath);
+            LOG_ERROR("Failed to load sound buffer from file: {}", filepath);
             return false;
         }
 
         m_soundBuffers[id] = std::move(buffer);
+        LOG_INFO("SAudio: Loaded sound '{}' from '{}'", id, filepath);
         return true;
     }
 
     m_musicPaths[id] = filepath;
+    LOG_INFO("SAudio: Registered music '{}' from '{}'", id, filepath);
     return true;
 }
 
@@ -185,7 +189,7 @@ bool SAudio::playSfx(Entity entity, const std::string& id, bool loop, float volu
     auto bufferIt = m_soundBuffers.find(id);
     if (bufferIt == m_soundBuffers.end())
     {
-        spdlog::warn("Sound buffer '{}' not found", id);
+        LOG_WARN("Sound buffer '{}' not found", id);
         return false;
     }
 
@@ -194,7 +198,7 @@ bool SAudio::playSfx(Entity entity, const std::string& id, bool loop, float volu
     int slotIndex = findAvailableSlot();
     if (slotIndex < 0)
     {
-        spdlog::warn("Sound pool full, cannot play '{}'", id);
+        LOG_WARN("Sound pool full, cannot play '{}'", id);
         return false;
     }
 
@@ -262,14 +266,14 @@ bool SAudio::playMusic(const std::string& id, bool loop)
 {
     if (!m_initialized)
     {
-        spdlog::error("Cannot play music: audio system not initialized");
+        LOG_ERROR("Cannot play music: audio system not initialized");
         return false;
     }
 
     auto it = m_musicPaths.find(id);
     if (it == m_musicPaths.end())
     {
-        spdlog::error("Music '{}' not found", id);
+        LOG_ERROR("Music '{}' not found", id);
         return false;
     }
 
@@ -302,7 +306,7 @@ bool SAudio::playMusic(const std::string& id, bool loop)
 
     if (!success)
     {
-        spdlog::error("Failed to open music file: {}", it->second);
+        LOG_ERROR("Failed to open music file: {}", it->second);
         m_currentMusic.reset();
         return false;
     }

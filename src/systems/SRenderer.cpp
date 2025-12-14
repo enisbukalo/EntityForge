@@ -1,5 +1,4 @@
 #include "SRenderer.h"
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include "CCollider2D.h"
 #include "CMaterial.h"
@@ -8,6 +7,7 @@
 #include "CShader.h"
 #include "CTexture.h"
 #include "CTransform.h"
+#include "Logger.h"
 #include "SParticle.h"
 #include "World.h"
 
@@ -30,7 +30,7 @@ bool SRenderer::initialize(const WindowConfig& config)
 {
     if (m_initialized)
     {
-        spdlog::warn("SRenderer: Already initialized");
+        LOG_WARN("SRenderer: Already initialized");
         return true;
     }
 
@@ -43,7 +43,7 @@ bool SRenderer::initialize(const WindowConfig& config)
     // Check if window was created and is open
     if (!m_window->isOpen())
     {
-        spdlog::error("SRenderer: Failed to create render window");
+        LOG_ERROR("SRenderer: Failed to create render window");
         m_window.reset();
         return false;
     }
@@ -56,7 +56,7 @@ bool SRenderer::initialize(const WindowConfig& config)
     }
 
     m_initialized = true;
-    spdlog::info("SRenderer: Initialized with window size {}x{}", config.width, config.height);
+    LOG_INFO("SRenderer: Initialized with window size {}x{}", config.width, config.height);
     return true;
 }
 
@@ -77,7 +77,7 @@ void SRenderer::shutdown()
     }
 
     m_initialized = false;
-    spdlog::info("SRenderer: Shutdown complete");
+    LOG_INFO("SRenderer: Shutdown complete");
 }
 
 void SRenderer::update(float deltaTime, World& world)
@@ -188,13 +188,13 @@ const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
     sf::Texture texture;
     if (!texture.loadFromFile(filepath))
     {
-        spdlog::error("SRenderer: Failed to load texture from '{}'", filepath);
+        LOG_ERROR("SRenderer: Failed to load texture from '{}'", filepath);
         return nullptr;
     }
 
     // Cache the texture
     m_textureCache[filepath] = std::move(texture);
-    spdlog::debug("SRenderer: Loaded texture '{}'", filepath);
+    LOG_DEBUG("SRenderer: Loaded texture '{}'", filepath);
     return &m_textureCache[filepath];
 }
 
@@ -218,7 +218,7 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
     // Check if shaders are supported
     if (!sf::Shader::isAvailable())
     {
-        spdlog::warn("SRenderer: Shaders are not available on this system");
+        LOG_WARN("SRenderer: Shaders are not available on this system");
         return nullptr;
     }
 
@@ -241,27 +241,27 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
 
     if (!loaded)
     {
-        spdlog::error("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+        LOG_ERROR("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
         return nullptr;
     }
 
     // Cache the shader
     const sf::Shader* shaderPtr = shader.get();
     m_shaderCache[cacheKey]     = std::move(shader);
-    spdlog::debug("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+    LOG_DEBUG("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
     return shaderPtr;
 }
 
 void SRenderer::clearTextureCache()
 {
     m_textureCache.clear();
-    spdlog::debug("SRenderer: Texture cache cleared");
+    LOG_DEBUG("SRenderer: Texture cache cleared");
 }
 
 void SRenderer::clearShaderCache()
 {
     m_shaderCache.clear();
-    spdlog::debug("SRenderer: Shader cache cleared");
+    LOG_DEBUG("SRenderer: Shader cache cleared");
 }
 
 void SRenderer::renderEntity(Entity entity, World& world)
@@ -284,7 +284,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
 
     if (!transform)
     {
-        spdlog::warn("SRenderer: Entity has CRenderable but no CTransform");
+        LOG_WARN("SRenderer: Entity has CRenderable but no CTransform");
         return;
     }
 

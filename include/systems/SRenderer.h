@@ -81,6 +81,11 @@ public:
     SRenderer();
     ~SRenderer() override;
 
+    std::string_view name() const override
+    {
+        return "SRenderer";
+    }
+
     /**
      * @brief Initializes the renderer with window configuration
      * @param config Window initialization configuration

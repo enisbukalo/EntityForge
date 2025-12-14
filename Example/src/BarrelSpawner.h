@@ -9,10 +9,10 @@
 namespace Example
 {
 
-class BarrelSpawnerScript final : public Components::INativeScript
+class BarrelSpawner final : public Components::INativeScript
 {
 public:
-    BarrelSpawnerScript(float minX, float maxX, float minY, float maxY, size_t count);
+    BarrelSpawner(float minX, float maxX, float minY, float maxY, size_t count);
 
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;

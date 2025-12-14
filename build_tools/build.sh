@@ -13,6 +13,7 @@ BUILD_WINDOWS=false
 BUILD_TYPE="Debug"
 CLEAN_BUILD=false
 RUN_TESTS=true
+RUN_COVERAGE=false
 SCRIPT_DIR="$(dirname "$0")"
 
 # Help message
@@ -26,9 +27,11 @@ usage() {
     echo "  -t, --type TYPE         Set build type (Debug/Release) [default: Debug]"
     echo "  -c, --clean             Clean build directories"
     echo "  -n, --no-tests          Skip building and running tests (Linux only)"
+    echo "  -g, --coverage          Generate coverage report (Linux only; runs tests in coverage build)"
     echo ""
     echo "Examples:"
     echo "  $0 --linux              Build for Linux only"
+    echo "  $0 --linux --coverage   Build for Linux and generate coverage report"
     echo "  $0 --windows            Build for Windows only"
     echo "  $0 --all                Build for both platforms"
     echo "  $0 -l -t Release        Build Linux Release version"
@@ -67,6 +70,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         -n|--no-tests)
             RUN_TESTS=false
+            ;;
+        -g|--coverage)
+            RUN_COVERAGE=true
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
@@ -108,6 +114,9 @@ if [ "$BUILD_LINUX" = true ]; then
     fi
     if [ "$RUN_TESTS" = false ]; then
         LINUX_ARGS="$LINUX_ARGS -n"
+    fi
+    if [ "$RUN_COVERAGE" = true ]; then
+        LINUX_ARGS="$LINUX_ARGS -g"
     fi
 
     if bash "${SCRIPT_DIR}/build_linux.sh" $LINUX_ARGS; then

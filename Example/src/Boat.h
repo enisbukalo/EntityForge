@@ -14,7 +14,7 @@ namespace Example
 // Scene composition code (main) should call this rather than hardcoding boat-specific data.
 Entity spawnBoat(World& world);
 
-class BoatScript final : public Components::INativeScript
+class Boat final : public Components::INativeScript
 {
 public:
     void onCreate(Entity self, World& world) override;

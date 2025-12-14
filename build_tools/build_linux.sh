@@ -13,6 +13,7 @@ BUILD_DIR="build_linux"
 RUN_TESTS=true
 CLEAN_BUILD=false
 INSTALL_PREFIX="./package_linux"
+RUN_COVERAGE=false
 
 generate_coverage_report() {
     # Coverage is best-effort and only runs when tests are enabled.
@@ -107,6 +108,7 @@ usage() {
     echo "  -t, --type TYPE         Set build type (Debug/Release)"
     echo "  -s, --shared            Build shared library"
     echo "  -n, --no-tests          Skip building and running tests"
+    echo "  -g, --coverage          Generate coverage report (runs tests in coverage build)"
     echo "  -c, --clean             Clean build directory"
     echo "  -i, --install-prefix    Set install prefix (default: ./package-linux)"
 }
@@ -128,6 +130,9 @@ while [[ $# -gt 0 ]]; do
         -n|--no-tests)
             RUN_TESTS=false
             ;;
+        -g|--coverage)
+            RUN_COVERAGE=true
+            ;;
         -c|--clean)
             CLEAN_BUILD=true
             ;;
@@ -143,6 +148,12 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+# If coverage is requested, run tests in the coverage build (once), not the normal build.
+NORMAL_BUILD_RUN_TESTS=$RUN_TESTS
+if [ "$RUN_COVERAGE" = true ]; then
+    NORMAL_BUILD_RUN_TESTS=false
+fi
 
 # Check if CMakeLists.txt exists
 if [ ! -f "CMakeLists.txt" ]; then
@@ -172,7 +183,7 @@ echo -e "${GREEN}Using $NPROC parallel jobs${NC}"
 cmake --build ${BUILD_DIR} --config $BUILD_TYPE -j${NPROC} || { echo -e "${RED}Build failed!${NC}"; exit 1; }
 
 # Run tests if enabled
-if [ "$RUN_TESTS" = true ]; then
+if [ "$NORMAL_BUILD_RUN_TESTS" = true ]; then
     echo -e "${GREEN}Running tests...${NC}"
     # Create Testing directory structure
     mkdir -p ${BUILD_DIR}/Testing/Temporary
@@ -196,7 +207,9 @@ if [ "$RUN_TESTS" = true ]; then
 fi
 
 # Generate coverage report (Linux-only, best-effort)
-generate_coverage_report
+if [ "$RUN_COVERAGE" = true ]; then
+    generate_coverage_report
+fi
 
 # Install library using CMake
 echo -e "${GREEN}Installing library to ${INSTALL_PREFIX}...${NC}"

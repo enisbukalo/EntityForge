@@ -140,5 +140,5 @@ rm -f ${BUILD_DIR}/.ninja_deps
 rm -f ${BUILD_DIR}/.ninja_log
 
 echo -e "${GREEN}Build completed successfully!${NC}"
-echo -e "${GREEN}Executable location: ${BUILD_DIR}/BounceGame.exe${NC}"
+echo -e "${GREEN}Executable location: ${BUILD_DIR}/FishingGame.exe${NC}"
 echo -e "${GREEN}All required DLLs have been copied to the build directory${NC}"

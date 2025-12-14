@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 class World;
 
 namespace Systems
@@ -47,6 +49,11 @@ public:
     {
         return UpdateStage::PreFlush;
     }
+
+    /**
+     * @brief Returns human-readable name of the system for logging/debugging.
+     */
+    virtual std::string_view name() const = 0;
 };
 
 }  // namespace Systems

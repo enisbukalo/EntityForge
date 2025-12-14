@@ -2,6 +2,7 @@
 
 #include <CNativeScript.h>
 #include <World.h>
+#include "Logger.h"
 
 #include <vector>
 

@@ -4,15 +4,15 @@
 
 #include <Color.h>
 #include <Components.h>
+#include <Logger.h>
 
 #include <exception>
-#include <fstream>
 #include <iostream>
 #include <limits>
 
 #include "AudioManager.h"
 #include "BarrelSpawner.h"
-#include "BoatEntity.h"
+#include "Boat.h"
 
 using namespace Systems;
 
@@ -32,7 +32,7 @@ static Entity createAudioManager(World& world)
 {
     Entity audioManager = world.createEntity();
     auto*  script       = world.components().add<Components::CNativeScript>(audioManager);
-    script->bind<Example::AudioManagerScript>();
+    script->bind<Example::AudioManager>();
     return audioManager;
 }
 
@@ -40,18 +40,16 @@ static Entity createBarrelSpawner(World& world)
 {
     Entity spawner = world.createEntity();
     auto*  script  = world.components().add<Components::CNativeScript>(spawner);
-    script->bind<Example::BarrelSpawnerScript>(0.0f, PLAYFIELD_WIDTH_METERS, 0.0f, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
+    script->bind<Example::BarrelSpawner>(0.0f, PLAYFIELD_WIDTH_METERS, 0.0f, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
     return spawner;
 }
 
 int main()
 {
-    std::ofstream logFile("game_log.txt");
-
     try
     {
-        logFile << "Starting game initialization...\n";
-        logFile.flush();
+        Logger::initialize("logs");
+        LOG_INFO_CONSOLE("Starting game initialization...");
 
         WindowConfig windowConfig;
         windowConfig.width      = SCREEN_WIDTH;
@@ -60,92 +58,69 @@ int main()
         windowConfig.vsync      = true;
         windowConfig.frameLimit = 144;
 
-        logFile << "Creating GameEngine...\n";
-        logFile.flush();
+        LOG_INFO_CONSOLE("Creating GameEngine...");
 
         GameEngine engine(windowConfig, GRAVITY);
 
-        logFile << "Configuring input manager...\n";
-        logFile.flush();
+        LOG_INFO_CONSOLE("Configuring input manager...");
 
         // Input Manager is already initialized by GameEngine - just disable ImGui passthrough
         engine.getInputManager().setPassToImGui(false);
 
-        logFile << "Setting up physics...\n";
-        logFile.flush();
+        LOG_INFO_CONSOLE("Setting up physics...");
 
         // Set up Box2D physics world (gravity disabled)
         engine.getPhysics().setGravity({0.0f, 0.0f});
 
-        logFile << "Creating entities...\n";
-        logFile.flush();
+        LOG_INFO_CONSOLE("Creating entities...");
 
         World& world = engine.world();
         (void)createAudioManager(world);
         (void)Example::spawnBoat(world);
         (void)createBarrelSpawner(world);
 
-        std::cout << "Game initialized!\n";
-        std::cout << "Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)\n";
-
-        logFile << "Game initialized successfully!\n";
-        logFile.flush();
+        LOG_INFO_CONSOLE("Game initialized!");
+        LOG_INFO_CONSOLE("Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)");
 
         sf::Clock clock;
         clock.restart();
 
         auto* window = engine.getRenderer().getWindow();
 
-        logFile << "Entering main loop...\n";
-        logFile << "Window pointer: " << (window ? "valid" : "null") << "\n";
+        LOG_INFO_CONSOLE("Entering main loop...");
+        LOG_DEBUG_CONSOLE("Window pointer: {}", window ? "valid" : "null");
         if (window)
         {
-            logFile << "Window is open: " << (window->isOpen() ? "yes" : "no") << "\n";
+            LOG_DEBUG_CONSOLE("Window is open: {}", window->isOpen() ? "yes" : "no");
         }
-        logFile << "Engine is running: " << (engine.is_running() ? "yes" : "no") << "\n";
-        logFile.flush();
+        LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
 
         int frameCount = 0;
         while (engine.is_running() && window && window->isOpen())
         {
             frameCount++;
-            logFile << "Starting frame " << frameCount << "\n";
-            logFile.flush();
-
-            if (frameCount % 60 == 0)
-            {
-                logFile << "Reached frame " << frameCount << "\n";
-                logFile.flush();
-            }
-
-            logFile << "  Getting delta time...\n";
-            logFile.flush();
             const float dt     = clock.restart().asSeconds();
             const float safeDt = (dt < 0.001f) ? 0.016f : dt;  // Use 60 FPS default if dt is too small
 
-            logFile << "  Calling engine.update(" << safeDt << ")...\n";
-            logFile.flush();
+            if (frameCount % 60 == 0)
+            {
+                LOG_DEBUG_CONSOLE("Reached frame {}", frameCount);
+            }
+
             engine.update(safeDt);
-
-            logFile << "  Calling engine.render()...\n";
-            logFile.flush();
             engine.render();
-
-            logFile << "  Frame " << frameCount << " complete\n";
-            logFile.flush();
         }
 
-        logFile << "Main loop exited after " << frameCount << " frames\n";
-        logFile << "Engine is running: " << (engine.is_running() ? "yes" : "no") << "\n";
+        LOG_INFO_CONSOLE("Main loop exited after {} frames", frameCount);
+        LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
         if (window)
         {
-            logFile << "Window is open: " << (window->isOpen() ? "yes" : "no") << "\n";
+            LOG_DEBUG_CONSOLE("Window is open: {}", window->isOpen() ? "yes" : "no");
         }
         else
         {
-            logFile << "Window is null\n";
+            LOG_DEBUG_CONSOLE("Window is null");
         }
-        logFile.flush();
 
         if (window)
         {
@@ -157,16 +132,18 @@ int main()
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::cin.get();
 
-        logFile << "Exiting normally\n";
-        logFile.close();
+        LOG_INFO_CONSOLE("Exiting normally");
+        Logger::shutdown();
         return 0;
     }
     catch (const std::exception& e)
     {
         std::cerr << "FATAL std::exception: " << e.what() << "\n";
-        logFile << "FATAL std::exception: " << e.what() << "\n";
-        logFile.flush();
-        logFile.close();
+        if (Logger::isInitialized())
+        {
+            LOG_ERROR_CONSOLE("FATAL std::exception: {}", e.what());
+            Logger::shutdown();
+        }
 
         std::cerr << "Press Enter to exit...\n";
         std::cin.clear();
@@ -177,9 +154,11 @@ int main()
     catch (...)
     {
         std::cerr << "FATAL unknown exception\n";
-        logFile << "FATAL unknown exception\n";
-        logFile.flush();
-        logFile.close();
+        if (Logger::isInitialized())
+        {
+            LOG_ERROR_CONSOLE("FATAL unknown exception");
+            Logger::shutdown();
+        }
 
         std::cerr << "Press Enter to exit...\n";
         std::cin.clear();

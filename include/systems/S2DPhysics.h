@@ -77,6 +77,11 @@ public:
      */
     void update(float deltaTime, World& world) override;
 
+    std::string_view name() const override
+    {
+        return "S2DPhysics";
+    }
+
     bool usesFixedTimestep() const override
     {
         return true;

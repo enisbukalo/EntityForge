@@ -2,11 +2,11 @@
 
 #include <imgui-SFML.h>
 #include <imgui.h>
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <string>
 
 #include "CInputController.h"
+#include "Logger.h"
 #include "World.h"
 
 namespace Systems
@@ -23,10 +23,12 @@ void SInput::initialize(sf::RenderWindow* window, bool passToImGui)
 {
     m_window      = window;
     m_passToImGui = passToImGui;
+    LOG_INFO("SInput: Initialized (ImGui forwarding: {})", passToImGui);
 }
 
 void SInput::shutdown()
 {
+    LOG_INFO("SInput: Shutting down, clearing {} action bindings", m_actionBindings.size());
     m_window = nullptr;
     m_keyDown.clear();
     m_keyPressed.clear();
@@ -431,9 +433,9 @@ void SInput::update(float /*deltaTime*/, World& world)
     // Evaluate actions centrally
     for (const auto& actionKv : m_actionBindings)
     {
-        const std::string& name     = actionKv.first;
-        const auto&        bindings = actionKv.second;
-        ActionState        newState = ActionState::None;
+        const std::string& actionName = actionKv.first;
+        const auto&        bindings   = actionKv.second;
+        ActionState        newState   = ActionState::None;
 
         for (const auto& pr : bindings)
         {
@@ -499,23 +501,23 @@ void SInput::update(float /*deltaTime*/, World& world)
         }
 
         ActionState previous = ActionState::None;
-        auto        pit      = m_actionStates.find(name);
+        auto        pit      = m_actionStates.find(actionName);
         if (pit != m_actionStates.end())
             previous = pit->second;
         bool wasDown = (previous == ActionState::Pressed || previous == ActionState::Held);
         if (!wasDown && newState == ActionState::Pressed)
-            m_actionStates[name] = ActionState::Pressed;
+            m_actionStates[actionName] = ActionState::Pressed;
         else if (wasDown && newState == ActionState::None)
-            m_actionStates[name] = ActionState::Released;
+            m_actionStates[actionName] = ActionState::Released;
         else
-            m_actionStates[name] = newState;
+            m_actionStates[actionName] = newState;
 
-        if (m_actionStates[name] != ActionState::None)
+        if (m_actionStates[actionName] != ActionState::None)
         {
             InputEvent ie{};
             ie.type              = InputEventType::Action;
-            ie.action.actionName = name;
-            ie.action.state      = m_actionStates[name];
+            ie.action.actionName = actionName;
+            ie.action.state      = m_actionStates[actionName];
             for (const auto& kv : m_subscribers)
             {
                 try
