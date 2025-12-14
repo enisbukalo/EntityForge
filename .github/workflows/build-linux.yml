@@ -68,7 +68,7 @@ jobs:
       - name: Build and Test
         run: |
           chmod +x build_tools/build_linux.sh
-          ./build_tools/build_linux.sh -c -t ${{ inputs.build_type }}
+          ./build_tools/build_linux.sh -c -t ${{ inputs.build_type }} --coverage
 
       - name: Check Function Coverage (>= 80%)
         run: |
@@ -81,7 +81,7 @@ jobs:
         with:
           name: test-results-linux-${{ inputs.build_type }}
           path: |
-            build/Testing/Temporary/LastTest.log
+            build_linux/Testing/Temporary/LastTest.log
           retention-days: 30
 
       - name: Upload Linux Package

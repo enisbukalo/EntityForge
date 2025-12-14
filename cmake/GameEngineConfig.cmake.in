@@ -3,8 +3,9 @@
 include(CMakeFindDependencyMacro)
 
 # Find dependencies
-find_dependency(SFML 2.6 COMPONENTS graphics window system)
-find_dependency(ImGui-SFML 2.6)
+find_dependency(Threads)
+find_dependency(SFML 2.6 COMPONENTS graphics window system audio)
+find_dependency(OpenGL)
 find_dependency(box2d)
 
 # Include targets
