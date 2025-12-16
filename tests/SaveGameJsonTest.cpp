@@ -3,6 +3,7 @@
 #include <SaveGame.h>
 
 #include <ExecutablePaths.h>
+#include <FileUtilities.h>
 #include <World.h>
 
 #include <Components.h>
@@ -168,6 +169,96 @@ TEST(SaveGameJson, RoundTripBuiltInComponents)
     EXPECT_FLOAT_EQ(loadedSettings->sfxVolume, 0.9f);
 
     // Cleanup
+    std::filesystem::remove(path, ec);
+    std::filesystem::remove(path.parent_path(), ec);
+}
+
+TEST(SaveGameJson, SavePathResolvesBesideExecutable)
+{
+    const std::string slot = "savegame_path_resolution";
+    const auto        path = resolveSaveFilePath(slot + ".json");
+
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+
+    World world;
+    Entity e = world.createEntity();
+    world.add<Components::CName>(e, Components::CName { "Any" });
+
+    ASSERT_TRUE(Systems::SaveGame::saveWorld(world, slot));
+    ASSERT_TRUE(std::filesystem::exists(path));
+
+    const auto exeDir  = Internal::ExecutablePaths::getExecutableDir();
+    const auto saveDir = Internal::ExecutablePaths::resolveRelativeToExecutableDir("saved_games");
+
+    EXPECT_EQ(path.parent_path(), saveDir);
+    EXPECT_EQ(saveDir.parent_path(), exeDir);
+
+    std::filesystem::remove(path, ec);
+    std::filesystem::remove(path.parent_path(), ec);
+}
+
+TEST(SaveGameJson, MissingAndExtraFieldsAreTolerant)
+{
+    const std::string slot = "savegame_missing_extra_fields";
+    const auto        path = resolveSaveFilePath(slot + ".json");
+
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+
+    // Hand-write a save that:
+    // - omits optional/expected fields (CTransform lacks velocity/scale/rotation)
+    // - includes unknown/extra fields
+    // - includes an unknown component type that should be skipped
+    {
+        std::filesystem::create_directories(path.parent_path(), ec);
+
+        const std::string content =
+            "{\n"
+            "  \"format\": \"GameEngineSave\",\n"
+            "  \"engine\": { \"name\": \"GameEngine\", \"semver\": \"0.1.0\" },\n"
+            "  \"createdUtc\": \"2025-12-16T00:00:00Z\",\n"
+            "  \"extraRootField\": 123,\n"
+            "  \"entities\": [\n"
+            "    {\n"
+            "      \"id\": \"0\",\n"
+            "      \"components\": [\n"
+            "        { \"type\": \"CName\", \"data\": { \"name\": \"Player\", \"extra\": true } },\n"
+            "        { \"type\": \"CTransform\", \"data\": { \"position\": { \"x\": 5, \"y\": 6 }, \"unknown\": 999 } },\n"
+            "        { \"type\": \"CAudioSettings\", \"data\": { \"masterVolume\": 0.25, \"musicVolume\": 0.5, \"sfxVolume\": 0.75, \"unused\": 1 } },\n"
+            "        { \"type\": \"ThisComponentDoesNotExist\", \"data\": { \"a\": 1 } }\n"
+            "      ]\n"
+            "    }\n"
+            "  ]\n"
+            "}\n";
+
+        Internal::FileUtilities::writeFile(path.string(), content);
+    }
+
+    World loaded;
+    ASSERT_TRUE(Systems::SaveGame::loadWorld(loaded, slot, Systems::LoadMode::ReplaceWorld));
+
+    const Entity player = findEntityByName(loaded, "Player");
+    ASSERT_TRUE(player.isValid());
+
+    const auto* t = loaded.get<Components::CTransform>(player);
+    ASSERT_TRUE(t != nullptr);
+    EXPECT_FLOAT_EQ(t->position.x, 5.0f);
+    EXPECT_FLOAT_EQ(t->position.y, 6.0f);
+
+    // Defaults should remain for omitted fields
+    EXPECT_FLOAT_EQ(t->velocity.x, 0.0f);
+    EXPECT_FLOAT_EQ(t->velocity.y, 0.0f);
+    EXPECT_FLOAT_EQ(t->scale.x, 1.0f);
+    EXPECT_FLOAT_EQ(t->scale.y, 1.0f);
+    EXPECT_FLOAT_EQ(t->rotation, 0.0f);
+
+    const auto* s = loaded.get<Components::CAudioSettings>(player);
+    ASSERT_TRUE(s != nullptr);
+    EXPECT_FLOAT_EQ(s->masterVolume, 0.25f);
+    EXPECT_FLOAT_EQ(s->musicVolume, 0.5f);
+    EXPECT_FLOAT_EQ(s->sfxVolume, 0.75f);
+
     std::filesystem::remove(path, ec);
     std::filesystem::remove(path.parent_path(), ec);
 }

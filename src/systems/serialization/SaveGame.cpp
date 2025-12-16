@@ -176,7 +176,16 @@ bool SaveGame::loadWorld(World& world, const std::string& slotName, LoadMode mod
             return false;
         }
 
-        const int version = root.value("version", 0);
+        int version = 1;
+        if (root.contains("version"))
+        {
+            version = root.value("version", 0);
+        }
+        else
+        {
+            LOG_WARN("SaveGame: missing save version in {}; assuming version 1", filePath.string());
+        }
+
         if (version != 1)
         {
             LOG_ERROR("SaveGame: unsupported save version {} in {}", version, filePath.string());
@@ -198,11 +207,28 @@ bool SaveGame::loadWorld(World& world, const std::string& slotName, LoadMode mod
         savedIdToEntity.reserve(root["entities"].size());
 
         // Pass 1: create entities and map save ids -> runtime entities
+        size_t index = 0;
         for (const auto& entityJson : root["entities"])
         {
-            const std::string savedId = entityJson.value("id", "");
-            Entity            e       = world.createEntity();
-            savedIdToEntity.emplace(savedId, e);
+            std::string savedId = entityJson.value("id", "");
+            if (savedId.empty())
+            {
+                savedId = std::to_string(index);
+                LOG_WARN("SaveGame: entity missing id in {}; using fallback id '{}'", filePath.string(), savedId);
+            }
+
+            Entity e = world.createEntity();
+
+            auto [it, inserted] = savedIdToEntity.emplace(savedId, e);
+            if (!inserted)
+            {
+                // Duplicate id; keep both entities by generating a unique key.
+                std::string uniqueId = savedId + "#" + std::to_string(index);
+                LOG_WARN("SaveGame: duplicate entity id '{}' in {}; using '{}'", savedId, filePath.string(), uniqueId);
+                savedIdToEntity.emplace(std::move(uniqueId), e);
+            }
+
+            ++index;
         }
 
         Serialization::LoadContext loadCtx;
@@ -239,6 +265,11 @@ bool SaveGame::loadWorld(World& world, const std::string& slotName, LoadMode mod
                 }
 
                 const std::string type = compJson.value("type", "");
+                if (type.empty())
+                {
+                    LOG_WARN("SaveGame: component missing 'type' in {}; skipping", filePath.string());
+                    continue;
+                }
                 const auto*       entry = registry.tryGet(type);
                 if (entry == nullptr || !entry->deserialize)
                 {
