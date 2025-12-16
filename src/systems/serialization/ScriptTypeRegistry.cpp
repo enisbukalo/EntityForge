@@ -34,7 +34,7 @@ std::string ScriptTypeRegistry::stableNameFor(const std::type_index& typeIdx) co
     auto it = m_stableNameByType.find(typeIdx);
     if (it == m_stableNameByType.end())
     {
-        return std::string {};
+        return std::string{};
     }
 
     return it->second;

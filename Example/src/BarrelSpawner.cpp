@@ -69,16 +69,21 @@ void BarrelSpawner::serializeFields(Serialization::ScriptFieldWriter& out) const
 
 void BarrelSpawner::deserializeFields(const Serialization::ScriptFieldReader& in)
 {
-    if (auto v = in.getFloat("minX")) m_minX = static_cast<float>(*v);
-    if (auto v = in.getFloat("maxX")) m_maxX = static_cast<float>(*v);
-    if (auto v = in.getFloat("minY")) m_minY = static_cast<float>(*v);
-    if (auto v = in.getFloat("maxY")) m_maxY = static_cast<float>(*v);
+    if (auto v = in.getFloat("minX"))
+        m_minX = static_cast<float>(*v);
+    if (auto v = in.getFloat("maxX"))
+        m_maxX = static_cast<float>(*v);
+    if (auto v = in.getFloat("minY"))
+        m_minY = static_cast<float>(*v);
+    if (auto v = in.getFloat("maxY"))
+        m_maxY = static_cast<float>(*v);
     if (auto v = in.getInt("barrelCount"))
     {
         const std::int64_t c = *v;
-        m_barrelCount = (c < 0) ? 0u : static_cast<size_t>(c);
+        m_barrelCount        = (c < 0) ? 0u : static_cast<size_t>(c);
     }
-    if (auto v = in.getBool("hasSpawned")) m_hasSpawned = *v;
+    if (auto v = in.getBool("hasSpawned"))
+        m_hasSpawned = *v;
 
     rebuildDistributions();
 }

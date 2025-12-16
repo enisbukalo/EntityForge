@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-#include "CAudioSettings.h"
 #include "CAudioListener.h"
+#include "CAudioSettings.h"
 #include "CAudioSource.h"
 #include "Logger.h"
 #include "World.h"
@@ -439,7 +439,7 @@ void SAudio::updateEcs(float deltaTime, World& world)
 
             setMasterVolume(settings.masterVolume);
             setMusicVolume(settings.musicVolume);
-            m_sfxVolume = std::clamp(settings.sfxVolume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
+            m_sfxVolume     = std::clamp(settings.sfxVolume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
             settingsApplied = true;
         });
 

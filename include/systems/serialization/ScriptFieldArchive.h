@@ -48,7 +48,9 @@ private:
 class ScriptFieldReader
 {
 public:
-    explicit ScriptFieldReader(std::unordered_map<std::string, ScriptFieldValue> fields) : m_fields(std::move(fields)) {}
+    explicit ScriptFieldReader(std::unordered_map<std::string, ScriptFieldValue> fields) : m_fields(std::move(fields))
+    {
+    }
 
     [[nodiscard]] std::optional<std::int64_t> getInt(std::string_view key) const
     {

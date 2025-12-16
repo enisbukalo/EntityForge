@@ -61,7 +61,7 @@ struct CNativeScript
         {
             scriptTypeName = std::string(T::kScriptName);
         }
-        created  = false;
+        created = false;
     }
 
     bool isBound() const

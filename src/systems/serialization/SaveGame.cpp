@@ -4,9 +4,9 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
-#include <unordered_map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -26,7 +26,7 @@ std::string toIso8601Utc(std::chrono::system_clock::time_point tp)
 {
     const std::time_t t = std::chrono::system_clock::to_time_t(tp);
 
-    std::tm utcTm {};
+    std::tm utcTm{};
 #if defined(_WIN32)
     gmtime_s(&utcTm, &t);
 #else
@@ -90,13 +90,13 @@ bool SaveGame::saveWorld(const World& world, const std::string& slotName)
         nlohmann::json root;
         root["format"]     = "GameEngineSave";
         root["version"]    = 1;
-        root["engine"]     = { {"name", "GameEngine"}, {"semver", "0.1.0"} };
+        root["engine"]     = {{"name", "GameEngine"}, {"semver", "0.1.0"}};
         root["createdUtc"] = toIso8601Utc(std::chrono::system_clock::now());
         root["entities"]   = nlohmann::json::array();
 
         std::unordered_map<Entity, std::string> entityToSavedId;
-        const auto& entities = world.getEntities();
-        size_t      id       = 0;
+        const auto&                             entities = world.getEntities();
+        size_t                                  id       = 0;
 
         for (Entity e : entities)
         {
@@ -270,14 +270,14 @@ bool SaveGame::loadWorld(World& world, const std::string& slotName, LoadMode mod
                     LOG_WARN("SaveGame: component missing 'type' in {}; skipping", filePath.string());
                     continue;
                 }
-                const auto*       entry = registry.tryGet(type);
+                const auto* entry = registry.tryGet(type);
                 if (entry == nullptr || !entry->deserialize)
                 {
                     LOG_WARN("SaveGame: unknown component type '{}' in save; skipping", type);
                     continue;
                 }
 
-                const auto& data = compJson.contains("data") ? compJson["data"] : nlohmann::json {};
+                const auto& data = compJson.contains("data") ? compJson["data"] : nlohmann::json{};
                 entry->deserialize(world, e, data, loadCtx);
             }
         }

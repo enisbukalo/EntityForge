@@ -29,15 +29,15 @@ struct LoadContext
 class ComponentSerializationRegistry
 {
 public:
-    using HasFn        = std::function<bool(const World&, Entity)>;
-    using SerializeFn  = std::function<nlohmann::json(const World&, Entity, const SaveContext&)>;
+    using HasFn         = std::function<bool(const World&, Entity)>;
+    using SerializeFn   = std::function<nlohmann::json(const World&, Entity, const SaveContext&)>;
     using DeserializeFn = std::function<void(World&, Entity, const nlohmann::json&, const LoadContext&)>;
 
     struct Entry
     {
-        std::string  stableName;
-        HasFn        has;
-        SerializeFn  serialize;
+        std::string   stableName;
+        HasFn         has;
+        SerializeFn   serialize;
         DeserializeFn deserialize;
     };
 
@@ -62,9 +62,9 @@ public:
         }
 
         Entry entry;
-        entry.stableName = stableName;
-        entry.has        = std::move(has);
-        entry.serialize  = std::move(serialize);
+        entry.stableName  = stableName;
+        entry.has         = std::move(has);
+        entry.serialize   = std::move(serialize);
         entry.deserialize = std::move(deserialize);
 
         m_indexByName.emplace(entry.stableName, m_entries.size());
@@ -92,8 +92,8 @@ public:
     }
 
 private:
-    std::vector<Entry>                       m_entries;
-    std::unordered_map<std::string, size_t>  m_indexByName;
+    std::vector<Entry>                      m_entries;
+    std::unordered_map<std::string, size_t> m_indexByName;
 };
 
 }  // namespace Serialization

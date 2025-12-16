@@ -33,7 +33,7 @@ private:
     float  m_maxY;
     size_t m_barrelCount;
 
-    bool   m_hasSpawned = false;
+    bool m_hasSpawned = false;
 
     std::mt19937                          m_rng;
     std::uniform_real_distribution<float> m_distX;

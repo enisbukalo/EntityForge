@@ -1,6 +1,8 @@
 #include "JsonComponentSerializers.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <string>
 #include <typeindex>
 
@@ -22,24 +24,24 @@ using json = nlohmann::json;
 
 json vec2ToJson(const Vec2& v)
 {
-    return json { {"x", v.x}, {"y", v.y} };
+    return json{{"x", v.x}, {"y", v.y}};
 }
 
-Vec2 vec2FromJson(const json& j, const Vec2& fallback = Vec2 { 0.0f, 0.0f })
+Vec2 vec2FromJson(const json& j, const Vec2& fallback = Vec2{0.0f, 0.0f})
 {
     if (!j.is_object())
     {
         return fallback;
     }
-    return Vec2 { j.value("x", fallback.x), j.value("y", fallback.y) };
+    return Vec2{j.value("x", fallback.x), j.value("y", fallback.y)};
 }
 
 json colorToJson(const Color& c)
 {
-    return json { {"r", c.r}, {"g", c.g}, {"b", c.b}, {"a", c.a} };
+    return json{{"r", c.r}, {"g", c.g}, {"b", c.b}, {"a", c.a}};
 }
 
-Color colorFromJson(const json& j, const Color& fallback = Color {})
+Color colorFromJson(const json& j, const Color& fallback = Color{})
 {
     if (!j.is_object())
     {
@@ -59,10 +61,10 @@ Color colorFromJson(const json& j, const Color& fallback = Color {})
         return static_cast<uint8_t>(v);
     };
 
-    return Color { toByte(j.value("r", static_cast<int>(fallback.r))),
-                   toByte(j.value("g", static_cast<int>(fallback.g))),
-                   toByte(j.value("b", static_cast<int>(fallback.b))),
-                   toByte(j.value("a", static_cast<int>(fallback.a))) };
+    return Color{toByte(j.value("r", static_cast<int>(fallback.r))),
+                 toByte(j.value("g", static_cast<int>(fallback.g))),
+                 toByte(j.value("b", static_cast<int>(fallback.b))),
+                 toByte(j.value("a", static_cast<int>(fallback.a)))};
 }
 
 template <typename Enum>
@@ -70,7 +72,7 @@ Enum enumFromIntOrString(const json& j, Enum fallback, const std::unordered_map<
 {
     if (j.is_string())
     {
-        const std::string s = j.get<std::string>();
+        const std::string s  = j.get<std::string>();
         auto              it = byName.find(s);
         if (it != byName.end())
         {
@@ -90,12 +92,18 @@ std::string visualTypeToString(Components::VisualType t)
     using VT = Components::VisualType;
     switch (t)
     {
-        case VT::None: return "None";
-        case VT::Rectangle: return "Rectangle";
-        case VT::Circle: return "Circle";
-        case VT::Sprite: return "Sprite";
-        case VT::Line: return "Line";
-        case VT::Custom: return "Custom";
+        case VT::None:
+            return "None";
+        case VT::Rectangle:
+            return "Rectangle";
+        case VT::Circle:
+            return "Circle";
+        case VT::Sprite:
+            return "Sprite";
+        case VT::Line:
+            return "Line";
+        case VT::Custom:
+            return "Custom";
     }
     return "None";
 }
@@ -118,10 +126,14 @@ std::string blendModeToString(Components::BlendMode m)
     using BM = Components::BlendMode;
     switch (m)
     {
-        case BM::Alpha: return "Alpha";
-        case BM::Add: return "Add";
-        case BM::Multiply: return "Multiply";
-        case BM::None: return "None";
+        case BM::Alpha:
+            return "Alpha";
+        case BM::Add:
+            return "Add";
+        case BM::Multiply:
+            return "Multiply";
+        case BM::None:
+            return "None";
     }
     return "Alpha";
 }
@@ -142,9 +154,12 @@ std::string bodyTypeToString(Components::BodyType t)
     using BT = Components::BodyType;
     switch (t)
     {
-        case BT::Static: return "Static";
-        case BT::Kinematic: return "Kinematic";
-        case BT::Dynamic: return "Dynamic";
+        case BT::Static:
+            return "Static";
+        case BT::Kinematic:
+            return "Kinematic";
+        case BT::Dynamic:
+            return "Dynamic";
     }
     return "Dynamic";
 }
@@ -164,11 +179,16 @@ std::string colliderShapeToString(Components::ColliderShape s)
     using CS = Components::ColliderShape;
     switch (s)
     {
-        case CS::Circle: return "Circle";
-        case CS::Box: return "Box";
-        case CS::Polygon: return "Polygon";
-        case CS::Segment: return "Segment";
-        case CS::ChainSegment: return "ChainSegment";
+        case CS::Circle:
+            return "Circle";
+        case CS::Box:
+            return "Box";
+        case CS::Polygon:
+            return "Polygon";
+        case CS::Segment:
+            return "Segment";
+        case CS::ChainSegment:
+            return "ChainSegment";
     }
     return "Box";
 }
@@ -190,11 +210,16 @@ std::string emissionShapeToString(Components::EmissionShape s)
     using ES = Components::EmissionShape;
     switch (s)
     {
-        case ES::Point: return "Point";
-        case ES::Circle: return "Circle";
-        case ES::Rectangle: return "Rectangle";
-        case ES::Line: return "Line";
-        case ES::Polygon: return "Polygon";
+        case ES::Point:
+            return "Point";
+        case ES::Circle:
+            return "Circle";
+        case ES::Rectangle:
+            return "Rectangle";
+        case ES::Line:
+            return "Line";
+        case ES::Polygon:
+            return "Polygon";
     }
     return "Point";
 }
@@ -215,9 +240,12 @@ std::string actionTriggerToString(ActionTrigger t)
 {
     switch (t)
     {
-        case ActionTrigger::Pressed: return "Pressed";
-        case ActionTrigger::Held: return "Held";
-        case ActionTrigger::Released: return "Released";
+        case ActionTrigger::Pressed:
+            return "Pressed";
+        case ActionTrigger::Held:
+            return "Held";
+        case ActionTrigger::Released:
+            return "Released";
     }
     return "Pressed";
 }
@@ -278,7 +306,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CTransform>(e);
-            return json {
+            return json{
                 {"position", vec2ToJson(c->position)},
                 {"velocity", vec2ToJson(c->velocity)},
                 {"scale", vec2ToJson(c->scale)},
@@ -288,9 +316,9 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
             Components::CTransform t;
-            t.position = vec2FromJson(data.value("position", json {}), t.position);
-            t.velocity = vec2FromJson(data.value("velocity", json {}), t.velocity);
-            t.scale    = vec2FromJson(data.value("scale", json {}), t.scale);
+            t.position = vec2FromJson(data.value("position", json{}), t.position);
+            t.velocity = vec2FromJson(data.value("velocity", json{}), t.velocity);
+            t.scale    = vec2FromJson(data.value("scale", json{}), t.scale);
             t.rotation = data.value("rotation", t.rotation);
             w.add<Components::CTransform>(e, t);
         });
@@ -302,7 +330,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CRenderable>(e);
-            return json {
+            return json{
                 {"visualType", visualTypeToString(c->visualType)},
                 {"color", colorToJson(c->color)},
                 {"zIndex", c->zIndex},
@@ -315,13 +343,13 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
             Components::CRenderable r;
-            r.visualType     = visualTypeFromJson(data.value("visualType", json {}));
-            r.color          = colorFromJson(data.value("color", json {}), r.color);
-            r.zIndex         = data.value("zIndex", r.zIndex);
-            r.visible        = data.value("visible", r.visible);
-            r.lineStart      = vec2FromJson(data.value("lineStart", json {}), r.lineStart);
-            r.lineEnd        = vec2FromJson(data.value("lineEnd", json {}), r.lineEnd);
-            r.lineThickness  = data.value("lineThickness", r.lineThickness);
+            r.visualType    = visualTypeFromJson(data.value("visualType", json{}));
+            r.color         = colorFromJson(data.value("color", json{}), r.color);
+            r.zIndex        = data.value("zIndex", r.zIndex);
+            r.visible       = data.value("visible", r.visible);
+            r.lineStart     = vec2FromJson(data.value("lineStart", json{}), r.lineStart);
+            r.lineEnd       = vec2FromJson(data.value("lineEnd", json{}), r.lineEnd);
+            r.lineThickness = data.value("lineThickness", r.lineThickness);
             w.add<Components::CRenderable>(e, r);
         });
 
@@ -332,7 +360,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CName>(e);
-            return json { {"name", c->name} };
+            return json{{"name", c->name}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
@@ -348,7 +376,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CTexture>(e);
-            return json { {"texturePath", c->texturePath} };
+            return json{{"texturePath", c->texturePath}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
@@ -364,7 +392,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CShader>(e);
-            return json { {"vertexShaderPath", c->vertexShaderPath}, {"fragmentShaderPath", c->fragmentShaderPath} };
+            return json{{"vertexShaderPath", c->vertexShaderPath}, {"fragmentShaderPath", c->fragmentShaderPath}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
@@ -381,7 +409,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CMaterial>(e);
-            return json {
+            return json{
                 {"tint", colorToJson(c->tint)},
                 {"blendMode", blendModeToString(c->blendMode)},
                 {"opacity", c->opacity},
@@ -390,8 +418,8 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
             Components::CMaterial m;
-            m.tint      = colorFromJson(data.value("tint", json {}), m.tint);
-            m.blendMode = blendModeFromJson(data.value("blendMode", json {}));
+            m.tint      = colorFromJson(data.value("tint", json{}), m.tint);
+            m.blendMode = blendModeFromJson(data.value("blendMode", json{}));
             m.opacity   = data.value("opacity", m.opacity);
             w.add<Components::CMaterial>(e, m);
         });
@@ -403,7 +431,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CPhysicsBody2D>(e);
-            return json {
+            return json{
                 {"bodyType", bodyTypeToString(c->bodyType)},
                 {"density", c->density},
                 {"friction", c->friction},
@@ -417,7 +445,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
             Components::CPhysicsBody2D b;
-            b.bodyType       = bodyTypeFromJson(data.value("bodyType", json {}));
+            b.bodyType       = bodyTypeFromJson(data.value("bodyType", json{}));
             b.density        = data.value("density", b.density);
             b.friction       = data.value("friction", b.friction);
             b.restitution    = data.value("restitution", b.restitution);
@@ -441,17 +469,18 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
             {
                 json fj;
                 fj["shapeType"] = colliderShapeToString(f.shapeType);
-                fj["circle"] = { {"center", vec2ToJson(f.circle.center)}, {"radius", f.circle.radius} };
-                fj["box"] = { {"halfWidth", f.box.halfWidth}, {"halfHeight", f.box.halfHeight} };
+                fj["circle"]    = {{"center", vec2ToJson(f.circle.center)}, {"radius", f.circle.radius}};
+                fj["box"]       = {{"halfWidth", f.box.halfWidth}, {"halfHeight", f.box.halfHeight}};
 
-                json polyVerts = json::array();
-                for (const auto& v : f.polygon.vertices)
-                {
-                    polyVerts.push_back(vec2ToJson(v));
-                }
-                fj["polygon"] = { {"vertices", std::move(polyVerts)}, {"radius", f.polygon.radius} };
+                std::vector<json> polyVerts;
+                polyVerts.reserve(f.polygon.vertices.size());
+                std::transform(f.polygon.vertices.begin(),
+                               f.polygon.vertices.end(),
+                               std::back_inserter(polyVerts),
+                               [](const Vec2& v) { return vec2ToJson(v); });
+                fj["polygon"] = {{"vertices", std::move(polyVerts)}, {"radius", f.polygon.radius}};
 
-                fj["segment"] = { {"point1", vec2ToJson(f.segment.point1)}, {"point2", vec2ToJson(f.segment.point2)} };
+                fj["segment"] = {{"point1", vec2ToJson(f.segment.point1)}, {"point2", vec2ToJson(f.segment.point2)}};
                 fj["chainSegment"] = {
                     {"ghost1", vec2ToJson(f.chainSegment.ghost1)},
                     {"point1", vec2ToJson(f.chainSegment.point1)},
@@ -461,7 +490,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 fixtures.push_back(std::move(fj));
             }
 
-            return json {
+            return json{
                 {"sensor", c->sensor},
                 {"density", c->density},
                 {"friction", c->friction},
@@ -482,23 +511,23 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 for (const auto& fj : data["fixtures"])
                 {
                     Components::ShapeFixture f;
-                    f.shapeType = colliderShapeFromJson(fj.value("shapeType", json {}));
+                    f.shapeType = colliderShapeFromJson(fj.value("shapeType", json{}));
 
                     if (fj.contains("circle"))
                     {
-                        const auto& cj = fj["circle"];
-                        f.circle.center = vec2FromJson(cj.value("center", json {}), f.circle.center);
+                        const auto& cj  = fj["circle"];
+                        f.circle.center = vec2FromJson(cj.value("center", json{}), f.circle.center);
                         f.circle.radius = cj.value("radius", f.circle.radius);
                     }
                     if (fj.contains("box"))
                     {
-                        const auto& bj = fj["box"];
+                        const auto& bj   = fj["box"];
                         f.box.halfWidth  = bj.value("halfWidth", f.box.halfWidth);
                         f.box.halfHeight = bj.value("halfHeight", f.box.halfHeight);
                     }
                     if (fj.contains("polygon"))
                     {
-                        const auto& pj = fj["polygon"];
+                        const auto& pj   = fj["polygon"];
                         f.polygon.radius = pj.value("radius", f.polygon.radius);
                         if (pj.contains("vertices") && pj["vertices"].is_array())
                         {
@@ -511,17 +540,17 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                     }
                     if (fj.contains("segment"))
                     {
-                        const auto& sj = fj["segment"];
-                        f.segment.point1 = vec2FromJson(sj.value("point1", json {}), f.segment.point1);
-                        f.segment.point2 = vec2FromJson(sj.value("point2", json {}), f.segment.point2);
+                        const auto& sj   = fj["segment"];
+                        f.segment.point1 = vec2FromJson(sj.value("point1", json{}), f.segment.point1);
+                        f.segment.point2 = vec2FromJson(sj.value("point2", json{}), f.segment.point2);
                     }
                     if (fj.contains("chainSegment"))
                     {
-                        const auto& cj = fj["chainSegment"];
-                        f.chainSegment.ghost1 = vec2FromJson(cj.value("ghost1", json {}), f.chainSegment.ghost1);
-                        f.chainSegment.point1 = vec2FromJson(cj.value("point1", json {}), f.chainSegment.point1);
-                        f.chainSegment.point2 = vec2FromJson(cj.value("point2", json {}), f.chainSegment.point2);
-                        f.chainSegment.ghost2 = vec2FromJson(cj.value("ghost2", json {}), f.chainSegment.ghost2);
+                        const auto& cj        = fj["chainSegment"];
+                        f.chainSegment.ghost1 = vec2FromJson(cj.value("ghost1", json{}), f.chainSegment.ghost1);
+                        f.chainSegment.point1 = vec2FromJson(cj.value("point1", json{}), f.chainSegment.point1);
+                        f.chainSegment.point2 = vec2FromJson(cj.value("point2", json{}), f.chainSegment.point2);
+                        f.chainSegment.ghost2 = vec2FromJson(cj.value("ghost2", json{}), f.chainSegment.ghost2);
                     }
 
                     c.fixtures.push_back(std::move(f));
@@ -537,7 +566,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e) { return w.has<Components::CInputController>(e); },
         [](const World& w, Entity e, const SaveContext&) -> json
         {
-            const auto* c = w.get<Components::CInputController>(e);
+            const auto* c           = w.get<Components::CInputController>(e);
             json        bindingsObj = json::object();
 
             for (const auto& [action, vec] : c->bindings)
@@ -545,17 +574,20 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 json arr = json::array();
                 for (const auto& b : vec)
                 {
-                    json keys = json::array();
-                    for (KeyCode k : b.binding.keys)
-                    {
-                        keys.push_back(static_cast<int>(k));
-                    }
-                    json mouse = json::array();
-                    for (MouseButton mb : b.binding.mouseButtons)
-                    {
-                        mouse.push_back(static_cast<int>(mb));
-                    }
-                    arr.push_back(json {
+                    std::vector<int> keys;
+                    keys.reserve(b.binding.keys.size());
+                    std::transform(b.binding.keys.begin(),
+                                   b.binding.keys.end(),
+                                   std::back_inserter(keys),
+                                   [](KeyCode k) { return static_cast<int>(k); });
+
+                    std::vector<int> mouse;
+                    mouse.reserve(b.binding.mouseButtons.size());
+                    std::transform(b.binding.mouseButtons.begin(),
+                                   b.binding.mouseButtons.end(),
+                                   std::back_inserter(mouse),
+                                   [](MouseButton mb) { return static_cast<int>(mb); });
+                    arr.push_back(json{
                         {"keys", std::move(keys)},
                         {"mouseButtons", std::move(mouse)},
                         {"trigger", actionTriggerToString(b.binding.trigger)},
@@ -565,7 +597,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 bindingsObj[action] = std::move(arr);
             }
 
-            return json { {"bindings", std::move(bindingsObj)} };
+            return json{{"bindings", std::move(bindingsObj)}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
@@ -611,7 +643,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                             }
                         }
 
-                        b.binding.trigger     = actionTriggerFromJson(bj.value("trigger", json {}));
+                        b.binding.trigger     = actionTriggerFromJson(bj.value("trigger", json{}));
                         b.binding.allowRepeat = bj.value("allowRepeat", b.binding.allowRepeat);
 
                         out.push_back(std::move(b));
@@ -630,14 +662,14 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CAudioSource>(e);
-            return json { {"clipId", c->clipId}, {"volume", c->volume}, {"loop", c->loop} };
+            return json{{"clipId", c->clipId}, {"volume", c->volume}, {"loop", c->loop}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
             Components::CAudioSource a;
-            a.clipId = data.value("clipId", a.clipId);
-            a.volume = data.value("volume", a.volume);
-            a.loop   = data.value("loop", a.loop);
+            a.clipId        = data.value("clipId", a.clipId);
+            a.volume        = data.value("volume", a.volume);
+            a.loop          = data.value("loop", a.loop);
             a.playRequested = false;
             a.stopRequested = false;
             w.add<Components::CAudioSource>(e, a);
@@ -650,7 +682,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CAudioListener>(e);
-            return json { {"masterVolume", c->masterVolume}, {"musicVolume", c->musicVolume} };
+            return json{{"masterVolume", c->masterVolume}, {"musicVolume", c->musicVolume}};
         },
         [](World& w, Entity e, const json& data, const LoadContext&)
         {
@@ -667,7 +699,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e, const SaveContext&) -> json
         {
             const auto* c = w.get<Components::CAudioSettings>(e);
-            return json {
+            return json{
                 {"masterVolume", c->masterVolume},
                 {"musicVolume", c->musicVolume},
                 {"sfxVolume", c->sfxVolume},
@@ -688,7 +720,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e) { return w.has<Components::CCamera>(e); },
         [](const World& w, Entity e, const SaveContext& ctx) -> json
         {
-            const auto* c = w.get<Components::CCamera>(e);
+            const auto* c        = w.get<Components::CCamera>(e);
             json        viewport = {
                 {"left", c->viewport.left},
                 {"top", c->viewport.top},
@@ -700,7 +732,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 {"max", vec2ToJson(c->clampRect.max)},
             };
 
-            return json {
+            return json{
                 {"name", c->name},
                 {"enabled", c->enabled},
                 {"render", c->render},
@@ -725,18 +757,18 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
             c.render      = data.value("render", c.render);
             c.renderOrder = data.value("renderOrder", c.renderOrder);
 
-            c.followTarget  = entityRefFromJson(data.value("followTarget", json {}), ctx);
+            c.followTarget  = entityRefFromJson(data.value("followTarget", json{}), ctx);
             c.followEnabled = data.value("followEnabled", c.followEnabled);
-            c.followOffset  = vec2FromJson(data.value("followOffset", json {}), c.followOffset);
+            c.followOffset  = vec2FromJson(data.value("followOffset", json{}), c.followOffset);
 
             c.zoom            = data.value("zoom", c.zoom);
             c.rotationRadians = data.value("rotationRadians", c.rotationRadians);
             c.worldHeight     = data.value("worldHeight", c.worldHeight);
-            c.position        = vec2FromJson(data.value("position", json {}), c.position);
+            c.position        = vec2FromJson(data.value("position", json{}), c.position);
 
             if (data.contains("viewport") && data["viewport"].is_object())
             {
-                const auto& v = data["viewport"];
+                const auto& v     = data["viewport"];
                 c.viewport.left   = v.value("left", c.viewport.left);
                 c.viewport.top    = v.value("top", c.viewport.top);
                 c.viewport.width  = v.value("width", c.viewport.width);
@@ -746,9 +778,9 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
             c.clampEnabled = data.value("clampEnabled", c.clampEnabled);
             if (data.contains("clampRect") && data["clampRect"].is_object())
             {
-                const auto& cr = data["clampRect"];
-                c.clampRect.min = vec2FromJson(cr.value("min", json {}), c.clampRect.min);
-                c.clampRect.max = vec2FromJson(cr.value("max", json {}), c.clampRect.max);
+                const auto& cr  = data["clampRect"];
+                c.clampRect.min = vec2FromJson(cr.value("min", json{}), c.clampRect.min);
+                c.clampRect.max = vec2FromJson(cr.value("max", json{}), c.clampRect.max);
             }
 
             w.add<Components::CCamera>(e, c);
@@ -760,14 +792,16 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         [](const World& w, Entity e) { return w.has<Components::CParticleEmitter>(e); },
         [](const World& w, Entity e, const SaveContext&) -> json
         {
-            const auto* c = w.get<Components::CParticleEmitter>(e);
-            json        polygon = json::array();
-            for (const auto& v : c->getPolygonVertices())
-            {
-                polygon.push_back(vec2ToJson(v));
-            }
+            const auto*       c     = w.get<Components::CParticleEmitter>(e);
+            const auto&       verts = c->getPolygonVertices();
+            std::vector<json> polygon;
+            polygon.reserve(verts.size());
+            std::transform(verts.begin(),
+                           verts.end(),
+                           std::back_inserter(polygon),
+                           [](const Vec2& v) { return vec2ToJson(v); });
 
-            return json {
+            return json{
                 {"active", c->isActive()},
                 {"direction", vec2ToJson(c->getDirection())},
                 {"spreadAngle", c->getSpreadAngle()},
@@ -807,7 +841,7 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
         {
             Components::CParticleEmitter p;
             p.setActive(data.value("active", true));
-            p.setDirection(vec2FromJson(data.value("direction", json {}), p.getDirection()));
+            p.setDirection(vec2FromJson(data.value("direction", json{}), p.getDirection()));
             p.setSpreadAngle(data.value("spreadAngle", p.getSpreadAngle()));
             p.setMinSpeed(data.value("minSpeed", p.getMinSpeed()));
             p.setMaxSpeed(data.value("maxSpeed", p.getMaxSpeed()));
@@ -817,34 +851,36 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
             p.setMaxSize(data.value("maxSize", p.getMaxSize()));
             p.setEmissionRate(data.value("emissionRate", p.getEmissionRate()));
             p.setBurstCount(data.value("burstCount", p.getBurstCount()));
-            p.setStartColor(colorFromJson(data.value("startColor", json {}), p.getStartColor()));
-            p.setEndColor(colorFromJson(data.value("endColor", json {}), p.getEndColor()));
+            p.setStartColor(colorFromJson(data.value("startColor", json{}), p.getStartColor()));
+            p.setEndColor(colorFromJson(data.value("endColor", json{}), p.getEndColor()));
             p.setStartAlpha(data.value("startAlpha", p.getStartAlpha()));
             p.setEndAlpha(data.value("endAlpha", p.getEndAlpha()));
-            p.setGravity(vec2FromJson(data.value("gravity", json {}), p.getGravity()));
+            p.setGravity(vec2FromJson(data.value("gravity", json{}), p.getGravity()));
             p.setMinRotationSpeed(data.value("minRotationSpeed", p.getMinRotationSpeed()));
             p.setMaxRotationSpeed(data.value("maxRotationSpeed", p.getMaxRotationSpeed()));
             p.setFadeOut(data.value("fadeOut", p.getFadeOut()));
             p.setShrink(data.value("shrink", p.getShrink()));
             p.setShrinkEndScale(data.value("shrinkEndScale", p.getShrinkEndScale()));
             p.setMaxParticles(data.value("maxParticles", p.getMaxParticles()));
-            p.setPositionOffset(vec2FromJson(data.value("positionOffset", json {}), p.getPositionOffset()));
+            p.setPositionOffset(vec2FromJson(data.value("positionOffset", json{}), p.getPositionOffset()));
 
-            p.setEmissionShape(emissionShapeFromJson(data.value("emissionShape", json {})));
+            p.setEmissionShape(emissionShapeFromJson(data.value("emissionShape", json{})));
             p.setShapeRadius(data.value("shapeRadius", p.getShapeRadius()));
-            p.setShapeSize(vec2FromJson(data.value("shapeSize", json {}), p.getShapeSize()));
-            p.setLineStart(vec2FromJson(data.value("lineStart", json {}), p.getLineStart()));
-            p.setLineEnd(vec2FromJson(data.value("lineEnd", json {}), p.getLineEnd()));
+            p.setShapeSize(vec2FromJson(data.value("shapeSize", json{}), p.getShapeSize()));
+            p.setLineStart(vec2FromJson(data.value("lineStart", json{}), p.getLineStart()));
+            p.setLineEnd(vec2FromJson(data.value("lineEnd", json{}), p.getLineEnd()));
             p.setEmitFromEdge(data.value("emitFromEdge", p.getEmitFromEdge()));
             p.setEmitOutward(data.value("emitOutward", p.getEmitOutward()));
 
             if (data.contains("polygonVertices") && data["polygonVertices"].is_array())
             {
+                const auto&       polyArr = data["polygonVertices"];
                 std::vector<Vec2> verts;
-                for (const auto& vj : data["polygonVertices"])
-                {
-                    verts.push_back(vec2FromJson(vj));
-                }
+                verts.reserve(polyArr.size());
+                std::transform(polyArr.begin(),
+                               polyArr.end(),
+                               std::back_inserter(verts),
+                               [](const json& vj) { return vec2FromJson(vj); });
                 p.setPolygonVertices(verts);
             }
 
@@ -906,11 +942,11 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 }
             }
 
-            return json { {"scriptType", scriptType}, {"fields", std::move(fields)} };
+            return json{{"scriptType", scriptType}, {"fields", std::move(fields)}};
         },
         [](World& w, Entity e, const json& data, const LoadContext& /*ctx*/)
         {
-            const std::string scriptType = data.value("scriptType", std::string {});
+            const std::string scriptType = data.value("scriptType", std::string{});
 
             std::unique_ptr<Components::INativeScript> instance;
             if (!scriptType.empty())
@@ -922,10 +958,10 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                 }
             }
 
-            auto* c = w.components().add<Components::CNativeScript>(e);
-            c->instance        = std::move(instance);
-            c->scriptTypeName  = scriptType;
-            c->created         = false;
+            auto* c           = w.components().add<Components::CNativeScript>(e);
+            c->instance       = std::move(instance);
+            c->scriptTypeName = scriptType;
+            c->created        = false;
 
             if (c->instance && data.contains("fields") && data["fields"].is_object())
             {

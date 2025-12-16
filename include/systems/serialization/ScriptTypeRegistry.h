@@ -27,7 +27,7 @@ public:
 
     static ScriptTypeRegistry& instance();
 
-    ScriptTypeRegistry(const ScriptTypeRegistry&) = delete;
+    ScriptTypeRegistry(const ScriptTypeRegistry&)            = delete;
     ScriptTypeRegistry& operator=(const ScriptTypeRegistry&) = delete;
 
     template <typename T>
@@ -74,13 +74,13 @@ public:
         static_assert(std::is_base_of<Components::INativeScript, T>::value,
                       "ScriptTypeRegistry::stableNameFor requires T to derive from Components::INativeScript");
 
-        const std::type_index typeIdx(typeid(T));
+        const std::type_index       typeIdx(typeid(T));
         std::lock_guard<std::mutex> lock(m_mutex);
 
         auto it = m_stableNameByType.find(typeIdx);
         if (it == m_stableNameByType.end())
         {
-            return std::string {};
+            return std::string{};
         }
         return it->second;
     }
@@ -90,7 +90,7 @@ private:
 
     mutable std::mutex m_mutex;
 
-    std::unordered_map<std::string, FactoryFn>   m_factories;
+    std::unordered_map<std::string, FactoryFn>       m_factories;
     std::unordered_map<std::string, std::type_index> m_typeByStableName;
     std::unordered_map<std::type_index, std::string> m_stableNameByType;
 };

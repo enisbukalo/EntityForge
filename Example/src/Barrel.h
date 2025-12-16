@@ -15,10 +15,10 @@ Entity spawnBarrel(World& world, const Vec2& position);
 class BarrelScript final : public Components::INativeScript
 {
 public:
-	static constexpr const char* kScriptName = "BarrelScript";
+    static constexpr const char* kScriptName = "BarrelScript";
 
-	void onCreate(Entity self, World& world) override;
-	void onUpdate(float deltaTime, Entity self, World& world) override;
+    void onCreate(Entity self, World& world) override;
+    void onUpdate(float deltaTime, Entity self, World& world) override;
 };
 
 }  // namespace Example

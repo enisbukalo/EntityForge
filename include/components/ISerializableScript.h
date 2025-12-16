@@ -17,7 +17,7 @@ class ISerializableScript
 public:
     virtual ~ISerializableScript() = default;
 
-    virtual void serializeFields(Serialization::ScriptFieldWriter& out) const = 0;
+    virtual void serializeFields(Serialization::ScriptFieldWriter& out) const  = 0;
     virtual void deserializeFields(const Serialization::ScriptFieldReader& in) = 0;
 };
 
