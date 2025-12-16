@@ -63,44 +63,40 @@ Components::CParticleEmitter makeBarrelSprayEmitter()
     return e;
 }
 
-class BarrelScript final : public Components::INativeScript
-{
-public:
-    void onCreate(Entity /*self*/, World& /*world*/) override {}
-
-    void onUpdate(float /*deltaTime*/, Entity self, World& world) override
-    {
-        auto* emitter = world.components().tryGet<Components::CParticleEmitter>(self);
-        if (!emitter)
-        {
-            return;
-        }
-
-        const b2Vec2 vel   = Systems::SystemLocator::physics().getLinearVelocity(self);
-        const float  speed = std::sqrt((vel.x * vel.x) + (vel.y * vel.y));
-
-        const float MIN_SPEED_FOR_SPRAY = kMinSpraySpeed;
-        const float MAX_SPEED_FOR_SPRAY = kMaxSpraySpeed;
-        const float MIN_EMISSION_RATE   = 0.0f;
-        const float MAX_EMISSION_RATE   = kMaxEmissionRate;
-
-        float emissionRate = 0.0f;
-        if (speed > MIN_SPEED_FOR_SPRAY)
-        {
-            float normalizedSpeed = (speed - MIN_SPEED_FOR_SPRAY) / (MAX_SPEED_FOR_SPRAY - MIN_SPEED_FOR_SPRAY);
-            normalizedSpeed       = std::min(1.0f, std::max(0.0f, normalizedSpeed));
-            emissionRate = MIN_EMISSION_RATE + (MAX_EMISSION_RATE - MIN_EMISSION_RATE) * (normalizedSpeed * normalizedSpeed);
-
-            float speedMultiplier = kMaxSpeed + (normalizedSpeed * kMaxSpeed);
-            emitter->setMinSpeed(kMinSpeed * speedMultiplier);
-            emitter->setMaxSpeed(kMaxSpeed * speedMultiplier);
-        }
-
-        emitter->setEmissionRate(emissionRate);
-    }
-};
-
 }  // namespace
+
+void BarrelScript::onCreate(Entity /*self*/, World& /*world*/) {}
+
+void BarrelScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
+{
+    auto* emitter = world.components().tryGet<Components::CParticleEmitter>(self);
+    if (!emitter)
+    {
+        return;
+    }
+
+    const b2Vec2 vel   = Systems::SystemLocator::physics().getLinearVelocity(self);
+    const float  speed = std::sqrt((vel.x * vel.x) + (vel.y * vel.y));
+
+    const float MIN_SPEED_FOR_SPRAY = kMinSpraySpeed;
+    const float MAX_SPEED_FOR_SPRAY = kMaxSpraySpeed;
+    const float MIN_EMISSION_RATE   = 0.0f;
+    const float MAX_EMISSION_RATE   = kMaxEmissionRate;
+
+    float emissionRate = 0.0f;
+    if (speed > MIN_SPEED_FOR_SPRAY)
+    {
+        float normalizedSpeed = (speed - MIN_SPEED_FOR_SPRAY) / (MAX_SPEED_FOR_SPRAY - MIN_SPEED_FOR_SPRAY);
+        normalizedSpeed       = std::min(1.0f, std::max(0.0f, normalizedSpeed));
+        emissionRate = MIN_EMISSION_RATE + (MAX_EMISSION_RATE - MIN_EMISSION_RATE) * (normalizedSpeed * normalizedSpeed);
+
+        float speedMultiplier = kMaxSpeed + (normalizedSpeed * kMaxSpeed);
+        emitter->setMinSpeed(kMinSpeed * speedMultiplier);
+        emitter->setMaxSpeed(kMaxSpeed * speedMultiplier);
+    }
+
+    emitter->setEmissionRate(emissionRate);
+}
 
 Entity spawnBarrel(World& world, const Vec2& position)
 {

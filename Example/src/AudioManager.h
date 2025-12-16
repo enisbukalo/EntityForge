@@ -1,15 +1,21 @@
 #pragma once
 
 #include <Components.h>
+#include <ISerializableScript.h>
 
 namespace Example
 {
 
-class AudioManager final : public Components::INativeScript
+class AudioManager final : public Components::INativeScript, public Components::ISerializableScript
 {
 public:
+    static constexpr const char* kScriptName = "AudioManager";
+
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;
+
+    void serializeFields(Serialization::ScriptFieldWriter& out) const override;
+    void deserializeFields(const Serialization::ScriptFieldReader& in) override;
 
 private:
     void adjustMasterVolume(float delta);

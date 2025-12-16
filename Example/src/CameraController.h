@@ -3,6 +3,7 @@
 #include <string>
 
 #include <Components.h>
+#include <ISerializableScript.h>
 
 namespace Components
 {
@@ -16,14 +17,20 @@ namespace Example
 // The controller will manipulate the camera with the given name.
 Entity spawnCameraController(World& world, std::string_view targetCameraName);
 
-class CameraController final : public Components::INativeScript
+class CameraController final : public Components::INativeScript, public Components::ISerializableScript
 {
 public:
+    static constexpr const char* kScriptName = "CameraController";
+
+    CameraController();
     explicit CameraController(std::string_view targetCameraName);
     ~CameraController() override;
 
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;
+
+    void serializeFields(Serialization::ScriptFieldWriter& out) const override;
+    void deserializeFields(const Serialization::ScriptFieldReader& in) override;
 
 private:
     static void bindCameraActions(Components::CInputController& input);

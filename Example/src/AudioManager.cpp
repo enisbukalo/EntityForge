@@ -17,9 +17,8 @@ void AudioManager::onCreate(Entity self, World& world)
 {
     auto& audio = Systems::SystemLocator::audio();
 
-    // Set initial master volume (matches the old Example defaults)
-    audio.setMasterVolume(kInitialMasterVolume);
-    m_currentMasterVolume = kInitialMasterVolume;
+    // Apply persisted (or default) master volume.
+    audio.setMasterVolume(m_currentMasterVolume);
     LOG_INFO_CONSOLE("AudioManager: Master volume set to {}%", static_cast<int>(m_currentMasterVolume * 100.0f));
 
     // Load audio assets
@@ -79,6 +78,19 @@ void AudioManager::adjustMasterVolume(float delta)
     m_currentMasterVolume = std::clamp(m_currentMasterVolume + delta, 0.0f, 1.0f);
     Systems::SystemLocator::audio().setMasterVolume(m_currentMasterVolume);
     LOG_INFO_CONSOLE("Master volume: {}%", static_cast<int>(m_currentMasterVolume * 100.0f));
+}
+
+void AudioManager::serializeFields(Serialization::ScriptFieldWriter& out) const
+{
+    out.setFloat("masterVolume", static_cast<double>(m_currentMasterVolume));
+}
+
+void AudioManager::deserializeFields(const Serialization::ScriptFieldReader& in)
+{
+    if (auto v = in.getFloat("masterVolume"))
+    {
+        m_currentMasterVolume = std::clamp(static_cast<float>(*v), 0.0f, 1.0f);
+    }
 }
 
 }  // namespace Example
