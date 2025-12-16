@@ -15,7 +15,7 @@ enum class LoadMode
 };
 
 /**
- * @brief Minimal save/load entry point (Phase 1).
+ * @brief Minimal save/load entry point.
  */
 class SaveGame
 {

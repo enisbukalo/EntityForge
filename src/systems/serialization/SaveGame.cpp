@@ -4,6 +4,7 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <unordered_map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -14,6 +15,9 @@
 #include "FileUtilities.h"
 #include "Logger.h"
 #include "World.h"
+
+#include "ComponentSerializationRegistry.h"
+#include "JsonComponentSerializers.h"
 
 namespace
 {
@@ -38,6 +42,18 @@ std::filesystem::path resolveSaveFilePath(const std::string& slotFilename)
 {
     const std::filesystem::path saveDir = Internal::ExecutablePaths::resolveRelativeToExecutableDir("saved_games");
     return saveDir / slotFilename;
+}
+
+const Serialization::ComponentSerializationRegistry& builtInRegistry()
+{
+    static Serialization::ComponentSerializationRegistry registry;
+    static bool                                          initialized = false;
+    if (!initialized)
+    {
+        Serialization::registerBuiltInJsonComponentSerializers(registry);
+        initialized = true;
+    }
+    return registry;
 }
 
 }  // namespace
@@ -78,8 +94,10 @@ bool SaveGame::saveWorld(const World& world, const std::string& slotName)
         root["createdUtc"] = toIso8601Utc(std::chrono::system_clock::now());
         root["entities"]   = nlohmann::json::array();
 
+        std::unordered_map<Entity, std::string> entityToSavedId;
         const auto& entities = world.getEntities();
         size_t      id       = 0;
+
         for (Entity e : entities)
         {
             if (!world.isAlive(e))
@@ -87,9 +105,47 @@ bool SaveGame::saveWorld(const World& world, const std::string& slotName)
                 continue;
             }
 
+            entityToSavedId.emplace(e, std::to_string(id++));
+        }
+
+        Serialization::SaveContext saveCtx;
+        saveCtx.entityToSavedId = &entityToSavedId;
+
+        const auto& registry = builtInRegistry();
+
+        for (Entity e : entities)
+        {
+            if (!world.isAlive(e))
+            {
+                continue;
+            }
+
+            const auto it = entityToSavedId.find(e);
+            if (it == entityToSavedId.end())
+            {
+                continue;
+            }
+
             nlohmann::json entityJson;
-            entityJson["id"]         = std::to_string(id++);
+            entityJson["id"]         = it->second;
             entityJson["components"] = nlohmann::json::array();
+
+            for (const auto& entry : registry.entries())
+            {
+                if (!entry.has || !entry.serialize)
+                {
+                    continue;
+                }
+                if (!entry.has(world, e))
+                {
+                    continue;
+                }
+
+                nlohmann::json comp;
+                comp["type"] = entry.stableName;
+                comp["data"] = entry.serialize(world, e, saveCtx);
+                entityJson["components"].push_back(std::move(comp));
+            }
             root["entities"].push_back(std::move(entityJson));
         }
 
@@ -132,12 +188,66 @@ bool SaveGame::loadWorld(World& world, const std::string& slotName, LoadMode mod
             world.clear();
         }
 
-        if (root.contains("entities") && root["entities"].is_array())
+        if (!root.contains("entities") || !root["entities"].is_array())
         {
-            for (const auto& entityJson : root["entities"])
+            LOG_WARN("SaveGame: no entities array in {}; nothing to load", filePath.string());
+            return true;
+        }
+
+        std::unordered_map<std::string, Entity> savedIdToEntity;
+        savedIdToEntity.reserve(root["entities"].size());
+
+        // Pass 1: create entities and map save ids -> runtime entities
+        for (const auto& entityJson : root["entities"])
+        {
+            const std::string savedId = entityJson.value("id", "");
+            Entity            e       = world.createEntity();
+            savedIdToEntity.emplace(savedId, e);
+        }
+
+        Serialization::LoadContext loadCtx;
+        loadCtx.savedIdToEntity = &savedIdToEntity;
+
+        const auto& registry = builtInRegistry();
+
+        // Pass 2: deserialize components
+        for (const auto& entityJson : root["entities"])
+        {
+            const std::string savedId = entityJson.value("id", "");
+            auto              it      = savedIdToEntity.find(savedId);
+            if (it == savedIdToEntity.end())
             {
-                (void)entityJson;
-                world.createEntity();
+                continue;
+            }
+
+            Entity e = it->second;
+            if (!world.isAlive(e))
+            {
+                continue;
+            }
+
+            if (!entityJson.contains("components") || !entityJson["components"].is_array())
+            {
+                continue;
+            }
+
+            for (const auto& compJson : entityJson["components"])
+            {
+                if (!compJson.is_object())
+                {
+                    continue;
+                }
+
+                const std::string type = compJson.value("type", "");
+                const auto*       entry = registry.tryGet(type);
+                if (entry == nullptr || !entry->deserialize)
+                {
+                    LOG_WARN("SaveGame: unknown component type '{}' in save; skipping", type);
+                    continue;
+                }
+
+                const auto& data = compJson.contains("data") ? compJson["data"] : nlohmann::json {};
+                entry->deserialize(world, e, data, loadCtx);
             }
         }
 
