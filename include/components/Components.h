@@ -11,6 +11,7 @@
 #include "CTransform.h"
 
 // Audio components
+#include "CAudioSettings.h"
 #include "CAudioListener.h"
 #include "CAudioSource.h"
 

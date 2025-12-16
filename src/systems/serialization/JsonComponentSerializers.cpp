@@ -660,6 +660,28 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
             w.add<Components::CAudioListener>(e, l);
         });
 
+    // CAudioSettings (persistent audio configuration)
+    registry.registerComponent(
+        "CAudioSettings",
+        [](const World& w, Entity e) { return w.has<Components::CAudioSettings>(e); },
+        [](const World& w, Entity e, const SaveContext&) -> json
+        {
+            const auto* c = w.get<Components::CAudioSettings>(e);
+            return json {
+                {"masterVolume", c->masterVolume},
+                {"musicVolume", c->musicVolume},
+                {"sfxVolume", c->sfxVolume},
+            };
+        },
+        [](World& w, Entity e, const json& data, const LoadContext&)
+        {
+            Components::CAudioSettings s;
+            s.masterVolume = data.value("masterVolume", s.masterVolume);
+            s.musicVolume  = data.value("musicVolume", s.musicVolume);
+            s.sfxVolume    = data.value("sfxVolume", s.sfxVolume);
+            w.add<Components::CAudioSettings>(e, s);
+        });
+
     // CCamera
     registry.registerComponent(
         "CCamera",

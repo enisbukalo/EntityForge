@@ -49,6 +49,7 @@ TEST(SaveGameJson, RoundTripBuiltInComponents)
     world.add<Components::CName>(target, Components::CName { "Target" });
     world.add<Components::CTransform>(target, Components::CTransform { Vec2(3.0f, 4.0f), Vec2(2.0f, 2.0f), 0.25f });
     world.add<Components::CAudioListener>(target, Components::CAudioListener { 0.8f, 0.4f });
+    world.add<Components::CAudioSettings>(target, Components::CAudioSettings { 0.7f, 0.3f, 0.9f });
 
     // Camera entity that follows target.
     Entity cameraE = world.createEntity();
@@ -158,6 +159,13 @@ TEST(SaveGameJson, RoundTripBuiltInComponents)
     EXPECT_EQ(loadedPe->getEmissionShape(), Components::EmissionShape::Circle);
     EXPECT_FLOAT_EQ(loadedPe->getShapeRadius(), 2.5f);
     EXPECT_EQ(loadedPe->getZIndex(), 5);
+
+    // Persistent audio settings round-trip
+    const auto* loadedSettings = loaded.get<Components::CAudioSettings>(loadedTarget);
+    ASSERT_TRUE(loadedSettings != nullptr);
+    EXPECT_FLOAT_EQ(loadedSettings->masterVolume, 0.7f);
+    EXPECT_FLOAT_EQ(loadedSettings->musicVolume, 0.3f);
+    EXPECT_FLOAT_EQ(loadedSettings->sfxVolume, 0.9f);
 
     // Cleanup
     std::filesystem::remove(path, ec);
