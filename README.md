@@ -76,6 +76,7 @@ For details (components, systems, scripting lifecycle), see the Wiki links above
 - Box2D v3.1.1
 - Dear ImGui 1.88 + ImGui-SFML 2.6
 - GoogleTest (tests)
+- nlohmann/json v3.11.3
 
 ## Project Structure
 
