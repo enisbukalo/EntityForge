@@ -27,6 +27,8 @@ Entity spawnCameraController(World& world, std::string_view targetCameraName)
     return controller;
 }
 
+CameraController::CameraController() : m_targetCameraName("Main") {}
+
 CameraController::CameraController(std::string_view targetCameraName) : m_targetCameraName(targetCameraName) {}
 
 void CameraController::onCreate(Entity self, World& world)
@@ -158,6 +160,19 @@ CameraController::~CameraController()
     {
         Systems::SystemLocator::input().unsubscribe(m_subscriberId);
         m_subscriberId = 0;
+    }
+}
+
+void CameraController::serializeFields(Serialization::ScriptFieldWriter& out) const
+{
+    out.setString("targetCameraName", m_targetCameraName);
+}
+
+void CameraController::deserializeFields(const Serialization::ScriptFieldReader& in)
+{
+    if (auto v = in.getString("targetCameraName"))
+    {
+        m_targetCameraName = *v;
     }
 }
 

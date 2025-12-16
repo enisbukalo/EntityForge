@@ -12,6 +12,7 @@
 
 // Audio components
 #include "CAudioListener.h"
+#include "CAudioSettings.h"
 #include "CAudioSource.h"
 
 // Particle and input

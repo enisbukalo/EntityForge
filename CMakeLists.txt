@@ -83,6 +83,14 @@ FetchContent_Declare(uuid_v4
 
 FetchContent_MakeAvailable(uuid_v4)
 
+# Fetch nlohmann/json (header-only JSON library)
+FetchContent_Declare(nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW ON)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Fetch ImGui (v1.88 is compatible with ImGui-SFML v2.6)
 FetchContent_Declare(IMGUI
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -200,6 +208,9 @@ target_include_directories(GameEngine
     $<INSTALL_INTERFACE:include/GameEngine/physics>
     $<INSTALL_INTERFACE:include>
 )
+
+# nlohmann/json is header-only; include it directly to avoid export/install dependency issues.
+target_include_directories(GameEngine PRIVATE $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>)
 
 # Allow setting AVX2 (or the platform equivalent) only for the Guid translation unit which
 # uses the header-only uuid_v4 implementation with AVX intrinsics.

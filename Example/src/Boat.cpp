@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <ActionBinding.h>
@@ -86,6 +88,23 @@ Entity spawnBoat(World& world)
 
 namespace
 {
+constexpr std::string_view kBubbleTrailName = "BoatBubbleTrail";
+constexpr std::string_view kHullSprayName   = "BoatHullSpray";
+
+Entity findEntityByName(World& world, std::string_view name)
+{
+    Entity found = Entity::null();
+    world.components().view<Components::CName>(
+        [&](Entity e, const Components::CName& n)
+        {
+            if (n.name == name)
+            {
+                found = e;
+            }
+        });
+    return found;
+}
+
 Components::CParticleEmitter makeBubbleTrailEmitter()
 {
     Components::CParticleEmitter e;
@@ -253,12 +272,24 @@ void Boat::setupParticles(Entity self, World& world)
     // Spawn separate entities for each emitter (only one CParticleEmitter per entity type).
     if (!m_bubbleTrail.isValid())
     {
-        m_bubbleTrail = world.queueSpawn(Components::CTransform(pos, Vec2{1.0f, 1.0f}, rotation), makeBubbleTrailEmitter());
+        m_bubbleTrail = findEntityByName(world, kBubbleTrailName);
+        if (!m_bubbleTrail.isValid())
+        {
+            m_bubbleTrail = world.queueSpawn(Components::CName{std::string(kBubbleTrailName)},
+                                             Components::CTransform(pos, Vec2{1.0f, 1.0f}, rotation),
+                                             makeBubbleTrailEmitter());
+        }
     }
 
     if (!m_hullSpray.isValid())
     {
-        m_hullSpray = world.queueSpawn(Components::CTransform(pos, Vec2{1.0f, 1.0f}, rotation), makeHullSprayEmitter());
+        m_hullSpray = findEntityByName(world, kHullSprayName);
+        if (!m_hullSpray.isValid())
+        {
+            m_hullSpray = world.queueSpawn(Components::CName{std::string(kHullSprayName)},
+                                           Components::CTransform(pos, Vec2{1.0f, 1.0f}, rotation),
+                                           makeHullSprayEmitter());
+        }
     }
 }
 

@@ -5,12 +5,15 @@
 #include <Color.h>
 #include <Components.h>
 #include <Logger.h>
+#include <SaveGame.h>
+#include <ScriptTypeRegistry.h>
 #include <SystemLocator.h>
 
 #include <exception>
 #include <iostream>
 
 #include "AudioManager.h"
+#include "Barrel.h"
 #include "BarrelSpawner.h"
 #include "Boat.h"
 #include "CameraController.h"
@@ -29,6 +32,17 @@ static constexpr float PLAYFIELD_WIDTH_METERS  = SCREEN_WIDTH / PIXELS_PER_METER
 static constexpr float PLAYFIELD_HEIGHT_METERS = SCREEN_HEIGHT / PIXELS_PER_METER;
 
 static constexpr size_t DEFAULT_BARREL_COUNT = 200;
+
+static void registerExampleScriptTypes()
+{
+    auto& registry = Serialization::ScriptTypeRegistry::instance();
+
+    (void)registry.registerScript<Example::AudioManager>(Example::AudioManager::kScriptName);
+    (void)registry.registerScript<Example::BarrelSpawner>(Example::BarrelSpawner::kScriptName);
+    (void)registry.registerScript<Example::Boat>(Example::Boat::kScriptName);
+    (void)registry.registerScript<Example::CameraController>(Example::CameraController::kScriptName);
+    (void)registry.registerScript<Example::BarrelScript>(Example::BarrelScript::kScriptName);
+}
 
 static Entity createAudioManager(World& world)
 {
@@ -64,6 +78,8 @@ int main()
 
         GameEngine engine(windowConfig, GRAVITY);
 
+        registerExampleScriptTypes();
+
         LOG_INFO_CONSOLE("Configuring input manager...");
 
         // Input Manager is already initialized by GameEngine - just disable ImGui passthrough
@@ -83,10 +99,28 @@ int main()
         (void)Example::spawnCameraController(world, "Main");
         (void)createBarrelSpawner(world);
 
-        // Mouse picking demo: log world-space coordinates on click.
+        // Save/load demo + mouse picking demo.
+        // Save files resolve to: <exe_dir>/saved_games/<slot>.json
+        LOG_INFO_CONSOLE("Save/Load: F5 = Save, F9 = Load (slot 'main_scene')");
         (void)engine.getInputManager().subscribe(
             [&](const InputEvent& inputEvent)
             {
+                if (inputEvent.type == InputEventType::KeyPressed && !inputEvent.key.repeat)
+                {
+                    if (inputEvent.key.key == KeyCode::F5)
+                    {
+                        const bool ok = Systems::SaveGame::saveWorld(world, "main_scene");
+                        LOG_INFO_CONSOLE("SaveGame: {}", ok ? "saved" : "save FAILED");
+                        return;
+                    }
+                    if (inputEvent.key.key == KeyCode::F9)
+                    {
+                        const bool ok = Systems::SaveGame::loadWorld(world, "main_scene", Systems::LoadMode::ReplaceWorld);
+                        LOG_INFO_CONSOLE("SaveGame: {}", ok ? "loaded" : "load FAILED");
+                        return;
+                    }
+                }
+
                 if (inputEvent.type != InputEventType::MouseButtonPressed)
                 {
                     return;

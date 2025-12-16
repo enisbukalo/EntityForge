@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "CAudioListener.h"
+#include "CAudioSettings.h"
 #include "CAudioSource.h"
 #include "Logger.h"
 #include "World.h"
@@ -427,18 +428,37 @@ void SAudio::updateEcs(float deltaTime, World& world)
         return;
     }
 
-    bool listenerApplied = false;
-    world.components().each<Components::CAudioListener>(
-        [this, &listenerApplied](Entity, const Components::CAudioListener& listener)
+    bool settingsApplied = false;
+    world.components().each<Components::CAudioSettings>(
+        [this, &settingsApplied](Entity, const Components::CAudioSettings& settings)
         {
-            if (listenerApplied)
+            if (settingsApplied)
             {
                 return;
             }
-            setMasterVolume(listener.masterVolume);
-            setMusicVolume(listener.musicVolume);
-            listenerApplied = true;
+
+            setMasterVolume(settings.masterVolume);
+            setMusicVolume(settings.musicVolume);
+            m_sfxVolume     = std::clamp(settings.sfxVolume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
+            settingsApplied = true;
         });
+
+    // Backward compatibility: treat CAudioListener as a legacy place for volume settings.
+    if (!settingsApplied)
+    {
+        bool listenerApplied = false;
+        world.components().each<Components::CAudioListener>(
+            [this, &listenerApplied](Entity, const Components::CAudioListener& listener)
+            {
+                if (listenerApplied)
+                {
+                    return;
+                }
+                setMasterVolume(listener.masterVolume);
+                setMusicVolume(listener.musicVolume);
+                listenerApplied = true;
+            });
+    }
 
     world.components().each<Components::CAudioSource>(
         [this](Entity entity, Components::CAudioSource& source)
@@ -472,7 +492,7 @@ int SAudio::findAvailableSlot()
 
 float SAudio::calculateEffectiveSfxVolume(float baseVolume) const
 {
-    return std::clamp(baseVolume * m_masterVolume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
+    return std::clamp(baseVolume * m_sfxVolume * m_masterVolume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
 }
 
 float SAudio::calculateEffectiveMusicVolume(float baseVolume) const

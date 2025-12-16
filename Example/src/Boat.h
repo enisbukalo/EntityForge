@@ -17,6 +17,8 @@ Entity spawnBoat(World& world);
 class Boat final : public Components::INativeScript
 {
 public:
+    static constexpr const char* kScriptName = "Boat";
+
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;
 

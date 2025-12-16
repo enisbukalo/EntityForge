@@ -123,6 +123,7 @@ private:
 
     float                              m_masterVolume = AudioConstants::DEFAULT_MASTER_VOLUME;
     float                              m_musicVolume  = AudioConstants::DEFAULT_MUSIC_VOLUME;
+    float                              m_sfxVolume    = AudioConstants::DEFAULT_SFX_VOLUME;
     std::unordered_map<Entity, size_t> m_entityToSlot;
 };
 
