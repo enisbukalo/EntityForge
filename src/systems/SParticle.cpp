@@ -12,6 +12,7 @@
 #include "FileUtilities.h"
 #include "Logger.h"
 #include "Registry.h"
+#include "SFMLResourceLoader.h"
 #include "World.h"
 
 namespace Systems
@@ -76,20 +77,12 @@ const sf::Texture* SParticle::loadTexture(const std::string& filepath)
     }
 
     sf::Texture texture;
-    bool        loaded = false;
-    try
-    {
-        loaded = texture.loadFromFile(resolvedPath);
-    }
-    catch (const std::exception& e)
-    {
-        LOG_ERROR("SParticle::loadTexture: exception loading '{}': {}", resolvedStr, e.what());
-        loaded = false;
-    }
 
+    std::string loadError;
+    const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
     if (!loaded)
     {
-        LOG_WARN("SParticle::loadTexture: failed to load '{}'", resolvedStr);
+        LOG_WARN("SParticle::loadTexture: failed to load '{}' : {}", resolvedStr, loadError);
         return nullptr;
     }
 
@@ -192,94 +185,15 @@ void SParticle::processQueuedTextureLoads()
 
         if (logThis)
         {
-            LOG_INFO("SParticle::processQueuedTextureLoads: reading bytes for '{}'", resolvedStr);
-        }
-
-        std::vector<std::uint8_t> fileBytes;
-        try
-        {
-            fileBytes = Internal::FileUtilities::readFileBinary(resolvedPath);
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SParticle::processQueuedTextureLoads: exception reading '{}': {}", resolvedStr, e.what());
-            it = m_queuedTextureLoads.erase(it);
-            continue;
-        }
-
-        if (logThis)
-        {
-            std::ostringstream sig;
-            sig << std::hex << std::setfill('0');
-            const size_t sigBytes = std::min<size_t>(8, fileBytes.size());
-            for (size_t i = 0; i < sigBytes; ++i)
-            {
-                sig << std::setw(2) << static_cast<unsigned int>(fileBytes[i]);
-                if (i + 1 < sigBytes)
-                {
-                    sig << ' ';
-                }
-            }
-            LOG_INFO("SParticle::processQueuedTextureLoads: read {} bytes (sig={}) for '{}'",
-                     fileBytes.size(),
-                     sig.str(),
-                     resolvedStr);
-            LOG_INFO("SParticle::processQueuedTextureLoads: decoding via sf::Image::loadFromMemory for '{}'", resolvedStr);
-        }
-
-        sf::Image image;
-        bool      imageLoaded = false;
-        try
-        {
-            imageLoaded = image.loadFromMemory(fileBytes.data(), fileBytes.size());
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SParticle::processQueuedTextureLoads: exception decoding '{}': {}", resolvedStr, e.what());
-            imageLoaded = false;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SParticle::processQueuedTextureLoads: Image::loadFromMemory returned {} for '{}'",
-                     imageLoaded ? "true" : "false",
-                     resolvedStr);
-        }
-
-        if (!imageLoaded)
-        {
-            LOG_WARN("SParticle::processQueuedTextureLoads: decode failed for '{}'", resolvedStr);
-            it = m_queuedTextureLoads.erase(it);
-            continue;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SParticle::processQueuedTextureLoads: uploading via sf::Texture::loadFromImage for '{}'", resolvedStr);
+            LOG_INFO("SParticle::processQueuedTextureLoads: loading '{}'", resolvedStr);
         }
 
         sf::Texture texture;
-        bool        loaded = false;
-        try
-        {
-            loaded = texture.loadFromImage(image);
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SParticle::processQueuedTextureLoads: exception uploading '{}': {}", resolvedStr, e.what());
-            loaded = false;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SParticle::processQueuedTextureLoads: Texture::loadFromImage returned {} for '{}'",
-                     loaded ? "true" : "false",
-                     resolvedStr);
-        }
-
+        std::string loadError;
+        const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
         if (!loaded)
         {
-            LOG_WARN("SParticle::processQueuedTextureLoads: upload failed for '{}'", resolvedStr);
+            LOG_WARN("SParticle::processQueuedTextureLoads: failed to load '{}' : {}", resolvedStr, loadError);
             it = m_queuedTextureLoads.erase(it);
             continue;
         }

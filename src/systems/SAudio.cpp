@@ -1,11 +1,15 @@
 #include "SAudio.h"
 
 #include <algorithm>
+#include <filesystem>
 
 #include "CAudioListener.h"
 #include "CAudioSettings.h"
 #include "CAudioSource.h"
+#include "ExecutablePaths.h"
+#include "FileUtilities.h"
 #include "Logger.h"
+#include "SFMLResourceLoader.h"
 #include "World.h"
 
 #ifndef _WIN32
@@ -128,8 +132,24 @@ bool SAudio::loadSound(const std::string& id, const std::string& filepath, Audio
         }
 #endif
 
+        const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+        const std::string          resolvedStr  = resolvedPath.string();
+
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SAudio: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_ERROR("Failed to load sound buffer (file does not exist): {} (original='{}')", resolvedStr, filepath);
+            return false;
+        }
+
         sf::SoundBuffer buffer;
-        bool            success = buffer.loadFromFile(filepath);
+        std::string     loadError;
+        const bool      success = Internal::SFMLResourceLoader::loadSoundBufferFromFileBytes(resolvedPath, buffer, &loadError);
 
 #ifndef _WIN32
         if (oldStderr != -1)
@@ -141,17 +161,20 @@ bool SAudio::loadSound(const std::string& id, const std::string& filepath, Audio
 
         if (!success)
         {
-            LOG_ERROR("Failed to load sound buffer from file: {}", filepath);
+            LOG_ERROR("Failed to load sound buffer from file bytes: {} (original='{}') : {}", resolvedStr, filepath, loadError);
             return false;
         }
 
         m_soundBuffers[id] = std::move(buffer);
-        LOG_INFO("SAudio: Loaded sound '{}' from '{}'", id, filepath);
+        LOG_INFO("SAudio: Loaded sound '{}' from '{}'", id, resolvedStr);
         return true;
     }
 
-    m_musicPaths[id] = filepath;
-    LOG_INFO("SAudio: Registered music '{}' from '{}'", id, filepath);
+    {
+        const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+        m_musicPaths[id]                         = resolvedPath.string();
+        LOG_INFO("SAudio: Registered music '{}' from '{}'", id, m_musicPaths[id]);
+    }
     return true;
 }
 

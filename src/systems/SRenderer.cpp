@@ -20,6 +20,7 @@
 #include "FileUtilities.h"
 #include "Logger.h"
 #include "SParticle.h"
+#include "SFMLResourceLoader.h"
 #include "World.h"
 
 namespace Systems
@@ -468,106 +469,18 @@ void SRenderer::processQueuedTextureLoads()
             continue;
         }
 
-        // Two-step load:
-        // 1) Read bytes ourselves + decode into CPU image via loadFromMemory
-        // 2) Upload to GPU texture
-        // This avoids SFML's file-IO path (loadFromFile), which is where we see hard crashes on Windows.
-        sf::Image image;
         if (logThis)
         {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: reading bytes for '{}'", resolvedStr);
+            LOG_INFO("SRenderer::processQueuedTextureLoads: loading '{}'", resolvedStr);
         }
 
-        std::vector<std::uint8_t> fileBytes;
-        try
-        {
-            fileBytes = Internal::FileUtilities::readFileBinary(resolvedPath);
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception reading '{}': {}", resolvedStr, e.what());
-            it = m_queuedTextureLoads.erase(it);
-            continue;
-        }
-
-        if (logThis)
-        {
-            std::ostringstream sig;
-            sig << std::hex << std::setfill('0');
-            const size_t sigBytes = std::min<size_t>(8, fileBytes.size());
-            for (size_t i = 0; i < sigBytes; ++i)
-            {
-                sig << std::setw(2) << static_cast<unsigned int>(fileBytes[i]);
-                if (i + 1 < sigBytes)
-                {
-                    sig << ' ';
-                }
-            }
-            LOG_INFO("SRenderer::processQueuedTextureLoads: read {} bytes (sig={}) for '{}'",
-                     fileBytes.size(),
-                     sig.str(),
-                     resolvedStr);
-            LOG_INFO("SRenderer::processQueuedTextureLoads: calling sf::Image::loadFromMemory for '{}'", resolvedStr);
-        }
-
-        bool imageLoaded = false;
-        try
-        {
-            imageLoaded = image.loadFromMemory(fileBytes.data(), fileBytes.size());
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception decoding '{}': {}", resolvedStr, e.what());
-            imageLoaded = false;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: Image::loadFromMemory returned {} for '{}'",
-                     imageLoaded ? "true" : "false",
-                     resolvedStr);
-        }
-
-        if (!imageLoaded)
-        {
-            LOG_WARN("SRenderer::processQueuedTextureLoads: decode failed for '{}'", resolvedStr);
-            it = m_queuedTextureLoads.erase(it);
-            continue;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: constructing sf::Texture for '{}'", resolvedStr);
-        }
-
-        sf::Texture texture;
-
-        if (logThis)
-        {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: calling sf::Texture::loadFromImage for '{}'", resolvedStr);
-        }
-
-        bool loaded = false;
-        try
-        {
-            loaded = texture.loadFromImage(image);
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception uploading '{}': {}", resolvedStr, e.what());
-            loaded = false;
-        }
-
-        if (logThis)
-        {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: Texture::loadFromImage returned {} for '{}'",
-                     loaded ? "true" : "false",
-                     resolvedStr);
-        }
+        sf::Texture  texture;
+        std::string  loadError;
+        const bool   loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
 
         if (!loaded)
         {
-            LOG_WARN("SRenderer::processQueuedTextureLoads: loadFromFile failed for '{}'", resolvedStr);
+            LOG_WARN("SRenderer::processQueuedTextureLoads: failed to load '{}' : {}", resolvedStr, loadError);
             it = m_queuedTextureLoads.erase(it);
             continue;
         }
@@ -631,20 +544,11 @@ const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
     }
 
     sf::Texture texture;
-    bool        loaded = false;
-    try
-    {
-        loaded = texture.loadFromFile(resolvedPath);
-    }
-    catch (const std::exception& e)
-    {
-        LOG_ERROR("SRenderer::loadTexture: exception loading '{}': {}", resolvedStr, e.what());
-        loaded = false;
-    }
-
+    std::string loadError;
+    const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
     if (!loaded)
     {
-        LOG_WARN("SRenderer::loadTexture: failed to load '{}'", resolvedStr);
+        LOG_WARN("SRenderer::loadTexture: failed to load '{}' : {}", resolvedStr, loadError);
         return nullptr;
     }
 
@@ -660,8 +564,18 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
         return nullptr;
     }
 
+    const std::filesystem::path resolvedVertexPath = vertexPath.empty()
+                                                     ? std::filesystem::path{}
+                                                     : Internal::ExecutablePaths::resolveRelativeToExecutableDir(vertexPath);
+    const std::filesystem::path resolvedFragmentPath = fragmentPath.empty()
+                                                       ? std::filesystem::path{}
+                                                       : Internal::ExecutablePaths::resolveRelativeToExecutableDir(fragmentPath);
+
+    const std::string resolvedVertexStr   = resolvedVertexPath.empty() ? std::string{} : resolvedVertexPath.string();
+    const std::string resolvedFragmentStr = resolvedFragmentPath.empty() ? std::string{} : resolvedFragmentPath.string();
+
     // Create cache key from both paths
-    std::string cacheKey = vertexPath + "|" + fragmentPath;
+    std::string cacheKey = resolvedVertexStr + "|" + resolvedFragmentStr;
 
     // Check if shader is already cached
     auto it = m_shaderCache.find(cacheKey);
@@ -681,29 +595,45 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
     auto shader = std::make_unique<sf::Shader>();
     bool loaded = false;
 
-    if (!vertexPath.empty() && !fragmentPath.empty())
+    // Avoid SFML file-IO path (loadFromFile) for consistency with Windows crash workaround.
+    try
     {
-        loaded = shader->loadFromFile(vertexPath, fragmentPath);
+        if (!resolvedVertexStr.empty() && !resolvedFragmentStr.empty())
+        {
+            const std::string vertexSource   = Internal::FileUtilities::readFile(resolvedVertexStr);
+            const std::string fragmentSource = Internal::FileUtilities::readFile(resolvedFragmentStr);
+            loaded                           = shader->loadFromMemory(vertexSource, fragmentSource);
+        }
+        else if (!resolvedVertexStr.empty())
+        {
+            const std::string vertexSource = Internal::FileUtilities::readFile(resolvedVertexStr);
+            loaded                         = shader->loadFromMemory(vertexSource, sf::Shader::Type::Vertex);
+        }
+        else
+        {
+            const std::string fragmentSource = Internal::FileUtilities::readFile(resolvedFragmentStr);
+            loaded                           = shader->loadFromMemory(fragmentSource, sf::Shader::Type::Fragment);
+        }
     }
-    else if (!vertexPath.empty())
+    catch (const std::exception& e)
     {
-        loaded = shader->loadFromFile(vertexPath, sf::Shader::Type::Vertex);
-    }
-    else
-    {
-        loaded = shader->loadFromFile(fragmentPath, sf::Shader::Type::Fragment);
+        LOG_ERROR("SRenderer: Exception loading shader sources (vertex: '{}', fragment: '{}'): {}",
+                  resolvedVertexStr,
+                  resolvedFragmentStr,
+                  e.what());
+        loaded = false;
     }
 
     if (!loaded)
     {
-        LOG_ERROR("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+        LOG_ERROR("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", resolvedVertexStr, resolvedFragmentStr);
         return nullptr;
     }
 
     // Cache the shader
     const sf::Shader* shaderPtr = shader.get();
     m_shaderCache[cacheKey]     = std::move(shader);
-    LOG_DEBUG("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+    LOG_DEBUG("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", resolvedVertexStr, resolvedFragmentStr);
     return shaderPtr;
 }
 
