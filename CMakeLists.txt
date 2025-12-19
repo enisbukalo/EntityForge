@@ -230,16 +230,42 @@ elseif (MSVC)
 endif()
 
 # Link against dependencies
-target_link_libraries(GameEngine
-    PUBLIC
-    SFML::Graphics
-    SFML::Window
-    SFML::System
-    SFML::Audio
-    ImGui-SFML
-    Threads::Threads
-    box2d
-)
+if(GAMEENGINE_BUILD_SHARED AND MINGW AND SFML_STATIC_LIBRARIES)
+    # IMPORTANT (MinGW cross-compile): SFML is built as static libs in the Docker image.
+    # If we export SFML in the GameEngine link interface while GameEngine itself is a DLL,
+    # consumers (like Example) will ALSO link SFML static libs into the EXE.
+    # That duplicates SFML global state across DLL + EXE and can cause hard crashes.
+    target_link_libraries(GameEngine
+        PRIVATE
+        SFML::Graphics
+        SFML::Window
+        SFML::System
+        SFML::Audio
+        ImGui-SFML
+        Threads::Threads
+        box2d
+    )
+
+    # But GameEngine public headers include SFML headers, so consumers still need SFML include dirs.
+    # Provide them as include directories without adding SFML static libs to the consumer link line.
+    target_include_directories(GameEngine PUBLIC
+        $<TARGET_PROPERTY:SFML::Graphics,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::Window,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::System,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::Audio,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+else()
+    target_link_libraries(GameEngine
+        PUBLIC
+        SFML::Graphics
+        SFML::Window
+        SFML::System
+        SFML::Audio
+        ImGui-SFML
+        Threads::Threads
+        box2d
+    )
+endif()
 
 target_link_libraries(GameEngine PRIVATE spdlog::spdlog)
 

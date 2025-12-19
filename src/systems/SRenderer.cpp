@@ -1,5 +1,11 @@
 #include "SRenderer.h"
 #include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+#include <SFML/Window/Context.hpp>
+#include <unordered_set>
 #include <vector>
 #include "CCamera.h"
 #include "CCollider2D.h"
@@ -10,6 +16,8 @@
 #include "CTexture.h"
 #include "CTransform.h"
 #include "CameraView.h"
+#include "ExecutablePaths.h"
+#include "FileUtilities.h"
 #include "Logger.h"
 #include "SParticle.h"
 #include "World.h"
@@ -99,6 +107,53 @@ void SRenderer::render(World& world)
     if (!m_initialized || !m_window || !m_window->isOpen())
     {
         return;
+    }
+
+    // Ensure the window context is active on this thread before doing any GPU work.
+    // SFML 3 on Windows is stricter about an active context for OpenGL entry points.
+    const bool contextActive = m_window->setActive(true);
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render setActive(true) => {}", s_renderFrameIndex, contextActive ? "true" : "false");
+    }
+
+    if (!contextActive)
+    {
+        // We can still draw non-OpenGL-dependent fallbacks, but texture loads would be unsafe.
+        // Continue rendering with cache-only texture usage.
+    }
+
+    // Process queued texture loads once per frame (not per-entity).
+    // This keeps file IO + GPU uploads out of hot per-entity render paths.
+    if (contextActive)
+    {
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer::render processQueuedTextureLoads begin (queued={})",
+                     s_renderFrameIndex,
+                     m_queuedTextureLoads.size());
+        }
+        processQueuedTextureLoads();
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer::render processQueuedTextureLoads end (queued={})",
+                     s_renderFrameIndex,
+                     m_queuedTextureLoads.size());
+        }
+        if (m_particleSystem)
+        {
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads begin",
+                         s_renderFrameIndex);
+            }
+            m_particleSystem->processQueuedTextureLoads();
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads end",
+                         s_renderFrameIndex);
+            }
+        }
     }
 
     struct RenderItem
@@ -311,6 +366,226 @@ sf::RenderWindow* SRenderer::getWindow()
     return m_window.get();
 }
 
+const sf::Texture* SRenderer::getCachedTexture(const std::string& resolvedKey) const
+{
+    auto it = m_textureCache.find(resolvedKey);
+    if (it == m_textureCache.end())
+    {
+        return nullptr;
+    }
+    return &it->second;
+}
+
+void SRenderer::requestTextureLoad(const std::string& filepath)
+{
+    if (filepath.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string          resolvedStr  = resolvedPath.string();
+
+    if (resolvedStr.empty())
+    {
+        return;
+    }
+
+    // Already cached?
+    if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+    {
+        return;
+    }
+
+    m_queuedTextureLoads.insert(resolvedStr);
+}
+
+void SRenderer::processQueuedTextureLoads()
+{
+    if (!m_window || !m_window->isOpen())
+    {
+        return;
+    }
+
+    if (m_queuedTextureLoads.empty())
+    {
+        return;
+    }
+
+    // Activate once per batch.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SRenderer::processQueuedTextureLoads: setActive(true) failed, deferring {} queued textures",
+                 m_queuedTextureLoads.size());
+        return;
+    }
+
+    // Load at most N textures per frame to avoid stalls.
+    constexpr size_t kMaxLoadsPerFrame = 4;
+    size_t          loadsThisFrame     = 0;
+
+    static uint64_t s_debugLoadsLogged = 0;
+
+    for (auto it = m_queuedTextureLoads.begin(); it != m_queuedTextureLoads.end() && loadsThisFrame < kMaxLoadsPerFrame;)
+    {
+        const std::string& resolvedStr = *it;
+
+        const std::filesystem::path resolvedPath(resolvedStr);
+
+        const bool logThis = s_debugLoadsLogged < 32;
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: begin '{}'", resolvedStr);
+            ++s_debugLoadsLogged;
+        }
+
+        if (logThis)
+        {
+            const auto genTexturesPtr = sf::Context::getFunction("glGenTextures");
+            const auto texImage2DPtr  = sf::Context::getFunction("glTexImage2D");
+            LOG_INFO("SRenderer::processQueuedTextureLoads: glGenTextures={} glTexImage2D={}",
+                     genTexturesPtr ? "ok" : "null",
+                     texImage2DPtr ? "ok" : "null");
+        }
+
+        // Another request might have loaded it already.
+        if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+        {
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: file does not exist: '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        // Two-step load:
+        // 1) Read bytes ourselves + decode into CPU image via loadFromMemory
+        // 2) Upload to GPU texture
+        // This avoids SFML's file-IO path (loadFromFile), which is where we see hard crashes on Windows.
+        sf::Image image;
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: reading bytes for '{}'", resolvedStr);
+        }
+
+        std::vector<std::uint8_t> fileBytes;
+        try
+        {
+            fileBytes = Internal::FileUtilities::readFileBinary(resolvedPath);
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception reading '{}': {}", resolvedStr, e.what());
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            std::ostringstream sig;
+            sig << std::hex << std::setfill('0');
+            const size_t sigBytes = std::min<size_t>(8, fileBytes.size());
+            for (size_t i = 0; i < sigBytes; ++i)
+            {
+                sig << std::setw(2) << static_cast<unsigned int>(fileBytes[i]);
+                if (i + 1 < sigBytes)
+                {
+                    sig << ' ';
+                }
+            }
+            LOG_INFO("SRenderer::processQueuedTextureLoads: read {} bytes (sig={}) for '{}'",
+                     fileBytes.size(),
+                     sig.str(),
+                     resolvedStr);
+            LOG_INFO("SRenderer::processQueuedTextureLoads: calling sf::Image::loadFromMemory for '{}'", resolvedStr);
+        }
+
+        bool imageLoaded = false;
+        try
+        {
+            imageLoaded = image.loadFromMemory(fileBytes.data(), fileBytes.size());
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception decoding '{}': {}", resolvedStr, e.what());
+            imageLoaded = false;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: Image::loadFromMemory returned {} for '{}'",
+                     imageLoaded ? "true" : "false",
+                     resolvedStr);
+        }
+
+        if (!imageLoaded)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: decode failed for '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: constructing sf::Texture for '{}'", resolvedStr);
+        }
+
+        sf::Texture texture;
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: calling sf::Texture::loadFromImage for '{}'", resolvedStr);
+        }
+
+        bool loaded = false;
+        try
+        {
+            loaded = texture.loadFromImage(image);
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SRenderer::processQueuedTextureLoads: exception uploading '{}': {}", resolvedStr, e.what());
+            loaded = false;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: Texture::loadFromImage returned {} for '{}'",
+                     loaded ? "true" : "false",
+                     resolvedStr);
+        }
+
+        if (!loaded)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: loadFromFile failed for '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        m_textureCache.emplace(resolvedStr, std::move(texture));
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: cached '{}' (cacheSize={})",
+                     resolvedStr,
+                     m_textureCache.size());
+        }
+
+        it = m_queuedTextureLoads.erase(it);
+        ++loadsThisFrame;
+    }
+}
+
 const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
 {
     if (filepath.empty())
@@ -318,25 +593,64 @@ const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
         return nullptr;
     }
 
+    if (!m_window || !m_window->isOpen())
+    {
+        return nullptr;
+    }
+
+    // Texture creation/upload may touch OpenGL state; ensure the window context is active.
+    // If activation fails, fail gracefully instead of risking a hard crash.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SRenderer::loadTexture: setActive(true) failed, skipping load for '{}'", filepath);
+        return nullptr;
+    }
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string          resolvedStr  = resolvedPath.string();
+
     // Check if texture is already cached
-    auto it = m_textureCache.find(filepath);
+    auto it = m_textureCache.find(resolvedStr);
     if (it != m_textureCache.end())
     {
         return &it->second;
     }
 
-    // Load new texture
-    sf::Texture texture;
-    if (!texture.loadFromFile(filepath))
     {
-        LOG_ERROR("SRenderer: Failed to load texture from '{}'", filepath);
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SRenderer::loadTexture: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SRenderer::loadTexture: file does not exist: '{}' (original='{}')", resolvedStr, filepath);
+            return nullptr;
+        }
+    }
+
+    sf::Texture texture;
+    bool        loaded = false;
+    try
+    {
+        loaded = texture.loadFromFile(resolvedPath);
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("SRenderer::loadTexture: exception loading '{}': {}", resolvedStr, e.what());
+        loaded = false;
+    }
+
+    if (!loaded)
+    {
+        LOG_WARN("SRenderer::loadTexture: failed to load '{}'", resolvedStr);
         return nullptr;
     }
 
-    // Cache the texture
-    m_textureCache[filepath] = std::move(texture);
-    LOG_DEBUG("SRenderer: Loaded texture '{}'", filepath);
-    return &m_textureCache[filepath];
+    auto [insertedIt, inserted] = m_textureCache.emplace(resolvedStr, std::move(texture));
+    (void)inserted;
+    return &insertedIt->second;
 }
 
 const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std::string& fragmentPath)
@@ -461,7 +775,18 @@ void SRenderer::renderEntity(Entity entity, World& world)
         auto* textureComp = components.tryGet<::Components::CTexture>(entity);
         if (textureComp)
         {
-            texture = loadTexture(textureComp->getTexturePath());
+            const std::string& texturePath = textureComp->getTexturePath();
+            if (!texturePath.empty())
+            {
+                // Cache-only in the hot render path: if missing, queue it and draw fallback.
+                const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
+                const std::string          resolvedStr  = resolvedPath.string();
+                texture                                  = getCachedTexture(resolvedStr);
+                if (!texture)
+                {
+                    requestTextureLoad(texturePath);
+                }
+            }
         }
     }
 

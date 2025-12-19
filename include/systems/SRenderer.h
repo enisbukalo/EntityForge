@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "Color.h"
 #include "System.h"
 
@@ -159,6 +160,14 @@ public:
     const sf::Texture* loadTexture(const std::string& filepath);
 
     /**
+     * @brief Enqueues a texture load request.
+     *
+     * This is safe to call from render code: it does not perform file IO or GPU uploads.
+     * The actual load is processed once per frame inside SRenderer::render().
+     */
+    void requestTextureLoad(const std::string& filepath);
+
+    /**
      * @brief Loads a shader from files and caches it
      * @param vertexPath Path to vertex shader (empty for no vertex shader)
      * @param fragmentPath Path to fragment shader (empty for no fragment shader)
@@ -205,9 +214,13 @@ private:
      */
     sf::BlendMode toSFMLBlendMode(::Components::BlendMode blendMode) const;
 
+    const sf::Texture* getCachedTexture(const std::string& resolvedKey) const;
+    void               processQueuedTextureLoads();
+
     std::unique_ptr<sf::RenderWindow>            m_window;                       ///< The render window
     std::unordered_map<std::string, sf::Texture> m_textureCache;                 ///< Cached textures by filepath
     std::unordered_map<std::string, std::unique_ptr<sf::Shader>> m_shaderCache;  ///< Cached shaders by filepath combination
+    std::unordered_set<std::string>              m_queuedTextureLoads;           ///< Resolved cache keys queued for load
     bool       m_initialized    = false;                                         ///< Initialization state
     SParticle* m_particleSystem = nullptr;                                       ///< Optional particle system hookup
 };

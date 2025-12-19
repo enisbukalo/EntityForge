@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "System.h"
 
 class Registry;  // Forward declaration
@@ -61,6 +62,14 @@ public:
     void renderEmitter(Entity entity, sf::RenderWindow* window, World& world);
 
     /**
+     * @brief Processes queued texture loads (once per frame).
+     *
+     * This is called by the renderer after it activates the window context.
+     * It performs file IO and GPU uploads, so it must not be called in hot per-emitter code.
+     */
+    void processQueuedTextureLoads();
+
+    /**
      * @brief Checks if the particle system is initialized
      * @return true if initialized, false otherwise
      */
@@ -82,6 +91,8 @@ private:
     SParticle& operator=(const SParticle&) = delete;
 
     const sf::Texture* loadTexture(const std::string& filepath);
+    void               requestTextureLoad(const std::string& filepath);
+    const sf::Texture* getCachedTexture(const std::string& resolvedKey) const;
 
     sf::VertexArray   m_vertexArray;     ///< Vertex array for rendering
     sf::RenderWindow* m_window;          ///< Render window reference
@@ -89,6 +100,7 @@ private:
     bool              m_initialized;     ///< Initialization state
 
     std::unordered_map<std::string, sf::Texture> m_textureCache;
+    std::unordered_set<std::string>              m_queuedTextureLoads;
 };
 
 }  // namespace Systems

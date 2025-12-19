@@ -1,7 +1,10 @@
 #ifndef FILE_UTILITIES_H
 #define FILE_UTILITIES_H
 
+#include <cstdint>
+#include <filesystem>
 #include <string>
+#include <vector>
 
 namespace Internal
 {
@@ -24,6 +27,14 @@ public:
      * @throws std::runtime_error if the file cannot be opened or read
      */
     static std::string readFile(const std::string& path);
+
+    /**
+     * @brief Reads an entire file into a byte buffer
+     * @param path The path to the file to read
+     * @return File contents as a byte buffer
+     * @throws std::runtime_error if the file cannot be opened or read
+     */
+    static std::vector<std::uint8_t> readFileBinary(const std::filesystem::path& path);
 
     /**
      * @brief Writes a string to a file, overwriting any existing content

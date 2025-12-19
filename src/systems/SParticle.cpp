@@ -2,9 +2,14 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <filesystem>
+#include <iomanip>
 #include <random>
+#include <sstream>
 #include "CParticleEmitter.h"
 #include "CTransform.h"
+#include "ExecutablePaths.h"
+#include "FileUtilities.h"
 #include "Logger.h"
 #include "Registry.h"
 #include "World.h"
@@ -19,24 +24,272 @@ const sf::Texture* SParticle::loadTexture(const std::string& filepath)
         return nullptr;
     }
 
-    auto it = m_textureCache.find(filepath);
+    static uint64_t s_textureLoadAttempt = 0;
+    const uint64_t  loadAttempt          = s_textureLoadAttempt++;
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string          resolvedStr  = resolvedPath.string();
+
+    if (loadAttempt < 6)
+    {
+        std::error_code ec;
+        const auto      cwd    = std::filesystem::current_path(ec);
+        const auto      exeDir = Internal::ExecutablePaths::getExecutableDir();
+        LOG_INFO("SParticle::loadTexture attempt {} filepath='{}' resolved='{}' cwd='{}' exeDir='{}'",
+                 loadAttempt,
+                 filepath,
+                 resolvedStr,
+                 ec ? std::string("<error>") : cwd.string(),
+                 exeDir.string());
+    }
+
+    auto it = m_textureCache.find(resolvedStr);
     if (it != m_textureCache.end())
     {
         return &it->second;
     }
 
-    sf::Texture texture;
-    if (!texture.loadFromFile(filepath))
     {
-        LOG_ERROR("SParticle: Failed to load texture from '{}'", filepath);
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SParticle::loadTexture: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SParticle::loadTexture: file does not exist: '{}' (original='{}')", resolvedStr, filepath);
+            return nullptr;
+        }
+    }
+
+    if (!m_window || !m_window->isOpen())
+    {
         return nullptr;
     }
 
-    m_textureCache[filepath] = std::move(texture);
-    return &m_textureCache[filepath];
+    // Ensure the window context is active before creating/uploading textures.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SParticle::loadTexture: setActive(true) failed, skipping load for '{}'", resolvedStr);
+        return nullptr;
+    }
+
+    sf::Texture texture;
+    bool        loaded = false;
+    try
+    {
+        loaded = texture.loadFromFile(resolvedPath);
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("SParticle::loadTexture: exception loading '{}': {}", resolvedStr, e.what());
+        loaded = false;
+    }
+
+    if (!loaded)
+    {
+        LOG_WARN("SParticle::loadTexture: failed to load '{}'", resolvedStr);
+        return nullptr;
+    }
+
+    auto [insertedIt, inserted] = m_textureCache.emplace(resolvedStr, std::move(texture));
+    (void)inserted;
+    return &insertedIt->second;
+
 }
 
-// Static random number generator
+
+const sf::Texture* SParticle::getCachedTexture(const std::string& resolvedKey) const
+{
+    auto it = m_textureCache.find(resolvedKey);
+    if (it == m_textureCache.end())
+    {
+        return nullptr;
+    }
+    return &it->second;
+}
+
+void SParticle::requestTextureLoad(const std::string& filepath)
+{
+    if (filepath.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string          resolvedStr  = resolvedPath.string();
+
+    if (resolvedStr.empty())
+    {
+        return;
+    }
+
+    if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+    {
+        return;
+    }
+
+    m_queuedTextureLoads.insert(resolvedStr);
+}
+
+void SParticle::processQueuedTextureLoads()
+{
+    if (!m_window || !m_window->isOpen())
+    {
+        return;
+    }
+
+    if (m_queuedTextureLoads.empty())
+    {
+        return;
+    }
+
+    // Activate once per batch.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SParticle::processQueuedTextureLoads: setActive(true) failed, deferring {} queued textures",
+                 m_queuedTextureLoads.size());
+        return;
+    }
+
+    // Limit work per frame.
+    constexpr size_t kMaxLoadsPerFrame = 2;
+    size_t          loadsThisFrame     = 0;
+
+    static uint64_t s_debugLoadsLogged = 0;
+
+    for (auto it = m_queuedTextureLoads.begin(); it != m_queuedTextureLoads.end() && loadsThisFrame < kMaxLoadsPerFrame;)
+    {
+        const std::string& resolvedStr = *it;
+
+        const bool logThis = s_debugLoadsLogged < 32;
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: begin '{}'", resolvedStr);
+            ++s_debugLoadsLogged;
+        }
+
+        if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+        {
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        const std::filesystem::path resolvedPath(resolvedStr);
+        std::error_code             ec;
+        const bool                  exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: file does not exist: '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: reading bytes for '{}'", resolvedStr);
+        }
+
+        std::vector<std::uint8_t> fileBytes;
+        try
+        {
+            fileBytes = Internal::FileUtilities::readFileBinary(resolvedPath);
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SParticle::processQueuedTextureLoads: exception reading '{}': {}", resolvedStr, e.what());
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            std::ostringstream sig;
+            sig << std::hex << std::setfill('0');
+            const size_t sigBytes = std::min<size_t>(8, fileBytes.size());
+            for (size_t i = 0; i < sigBytes; ++i)
+            {
+                sig << std::setw(2) << static_cast<unsigned int>(fileBytes[i]);
+                if (i + 1 < sigBytes)
+                {
+                    sig << ' ';
+                }
+            }
+            LOG_INFO("SParticle::processQueuedTextureLoads: read {} bytes (sig={}) for '{}'",
+                     fileBytes.size(),
+                     sig.str(),
+                     resolvedStr);
+            LOG_INFO("SParticle::processQueuedTextureLoads: decoding via sf::Image::loadFromMemory for '{}'", resolvedStr);
+        }
+
+        sf::Image image;
+        bool      imageLoaded = false;
+        try
+        {
+            imageLoaded = image.loadFromMemory(fileBytes.data(), fileBytes.size());
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SParticle::processQueuedTextureLoads: exception decoding '{}': {}", resolvedStr, e.what());
+            imageLoaded = false;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: Image::loadFromMemory returned {} for '{}'",
+                     imageLoaded ? "true" : "false",
+                     resolvedStr);
+        }
+
+        if (!imageLoaded)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: decode failed for '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: uploading via sf::Texture::loadFromImage for '{}'", resolvedStr);
+        }
+
+        sf::Texture texture;
+        bool        loaded = false;
+        try
+        {
+            loaded = texture.loadFromImage(image);
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SParticle::processQueuedTextureLoads: exception uploading '{}': {}", resolvedStr, e.what());
+            loaded = false;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: Texture::loadFromImage returned {} for '{}'",
+                     loaded ? "true" : "false",
+                     resolvedStr);
+        }
+
+        if (!loaded)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: upload failed for '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        m_textureCache.emplace(resolvedStr, std::move(texture));
+        it = m_queuedTextureLoads.erase(it);
+        ++loadsThisFrame;
+    }
+}
+
 static std::random_device               s_rd;
 static std::mt19937                     s_gen(s_rd());
 static std::uniform_real_distribution<> s_dist(0.0, 1.0);
@@ -525,7 +778,7 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
 
     sf::RenderWindow* targetWindow = window ? window : m_window;
 
-    if (m_initialized == false || targetWindow == nullptr || !entity.isValid())
+    if (m_initialized == false || targetWindow == nullptr || !targetWindow->isOpen() || !entity.isValid())
     {
         return;
     }
@@ -551,7 +804,19 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture begin", s_renderEmitterFrameIndex);
     }
 
-    const sf::Texture* texture = loadTexture(emitter->getTexturePath());
+    // Cache-only in the hot render path: if missing, queue it and draw fallback.
+    const std::string& texturePath = emitter->getTexturePath();
+    const sf::Texture* texture     = nullptr;
+    if (!texturePath.empty())
+    {
+        const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
+        const std::string          resolvedStr  = resolvedPath.string();
+        texture                                  = getCachedTexture(resolvedStr);
+        if (!texture)
+        {
+            requestTextureLoad(texturePath);
+        }
+    }
 
     if (s_renderEmitterFrameIndex < 3)
     {
@@ -595,7 +860,8 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         // Create color with alpha
         const float clampedAlpha = std::clamp(particle.alpha, 0.0f, 1.0f);
         const auto  alphaByte    = static_cast<std::uint8_t>(clampedAlpha * 255.0f);
-        sf::Color   color(particle.color.r, particle.color.g, particle.color.b, alphaByte);
+        // If a texture is missing/unavailable, fall back to a visible white quad.
+        sf::Color   color = texture ? sf::Color(particle.color.r, particle.color.g, particle.color.b, alphaByte) : sf::Color(255, 255, 255, alphaByte);
 
         if (texture)
         {
