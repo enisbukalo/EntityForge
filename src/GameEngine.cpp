@@ -142,7 +142,10 @@ void GameEngine::update(float deltaTime)
 
             if (s_frameIndex < 3)
             {
-                LOG_INFO("Frame {}: {} stage {} begin", s_frameIndex, system->name(), stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
+                LOG_INFO("Frame {}: {} stage {} begin",
+                         s_frameIndex,
+                         system->name(),
+                         stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
             }
 
             if (system->usesFixedTimestep())
@@ -162,7 +165,10 @@ void GameEngine::update(float deltaTime)
 
                 if (s_frameIndex < 3)
                 {
-                    LOG_INFO("Frame {}: {} stage {} end", s_frameIndex, system->name(), stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
+                    LOG_INFO("Frame {}: {} stage {} end",
+                             s_frameIndex,
+                             system->name(),
+                             stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
                 }
                 continue;
             }

@@ -220,9 +220,9 @@ private:
     std::unique_ptr<sf::RenderWindow>            m_window;                       ///< The render window
     std::unordered_map<std::string, sf::Texture> m_textureCache;                 ///< Cached textures by filepath
     std::unordered_map<std::string, std::unique_ptr<sf::Shader>> m_shaderCache;  ///< Cached shaders by filepath combination
-    std::unordered_set<std::string>              m_queuedTextureLoads;           ///< Resolved cache keys queued for load
-    bool       m_initialized    = false;                                         ///< Initialization state
-    SParticle* m_particleSystem = nullptr;                                       ///< Optional particle system hookup
+    std::unordered_set<std::string> m_queuedTextureLoads;        ///< Resolved cache keys queued for load
+    bool                            m_initialized    = false;    ///< Initialization state
+    SParticle*                      m_particleSystem = nullptr;  ///< Optional particle system hookup
 };
 
 }  // namespace Systems

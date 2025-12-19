@@ -34,7 +34,7 @@ bool SFMLResourceLoader::loadImageFromFileBytes(const std::filesystem::path& pat
         return false;
     }
 
-    bool      imageLoaded = false;
+    bool imageLoaded = false;
     try
     {
         imageLoaded = outImage.loadFromMemory(bytes.data(), bytes.size());
@@ -56,8 +56,8 @@ bool SFMLResourceLoader::loadImageFromFileBytes(const std::filesystem::path& pat
 
 bool SFMLResourceLoader::loadTextureFromFileBytes(const std::filesystem::path& path, sf::Texture& outTexture, std::string* outError)
 {
-    sf::Image    image;
-    std::string  imageError;
+    sf::Image   image;
+    std::string imageError;
 
     if (!loadImageFromFileBytes(path, image, &imageError))
     {
@@ -85,9 +85,7 @@ bool SFMLResourceLoader::loadTextureFromFileBytes(const std::filesystem::path& p
     return true;
 }
 
-bool SFMLResourceLoader::loadSoundBufferFromFileBytes(const std::filesystem::path& path,
-                                                      sf::SoundBuffer&            outBuffer,
-                                                      std::string*                outError)
+bool SFMLResourceLoader::loadSoundBufferFromFileBytes(const std::filesystem::path& path, sf::SoundBuffer& outBuffer, std::string* outError)
 {
     std::vector<std::uint8_t> bytes;
     try

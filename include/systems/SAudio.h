@@ -98,9 +98,9 @@ private:
     struct SoundSlot
     {
         std::optional<sf::Sound> sound;
-        Entity    owner      = Entity::null();
-        bool      inUse      = false;
-        float     baseVolume = 1.0f;
+        Entity                   owner      = Entity::null();
+        bool                     inUse      = false;
+        float                    baseVolume = 1.0f;
     };
 
     /**

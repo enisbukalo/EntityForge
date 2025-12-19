@@ -319,7 +319,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             if (forwardToImGuiAndCheckCapture(e))
                 return;
 
-            InputEvent inputEvent{};
+            InputEvent  inputEvent{};
             WindowEvent we{};
             we.width          = e.size.x;
             we.height         = e.size.y;
@@ -333,17 +333,17 @@ void SInput::update(float /*deltaTime*/, World& world)
                 return;
 
             InputEvent inputEvent{};
-            KeyEvent ke{};
-            ke.key          = keyCodeFromSFML(e.scancode);
-            ke.alt          = e.alt;
-            ke.ctrl         = e.control;
-            ke.shift        = e.shift;
-            ke.system       = e.system;
+            KeyEvent   ke{};
+            ke.key               = keyCodeFromSFML(e.scancode);
+            ke.alt               = e.alt;
+            ke.ctrl              = e.control;
+            ke.shift             = e.shift;
+            ke.system            = e.system;
             const auto wasDownIt = m_keyDown.find(ke.key);
             const bool wasDown   = (wasDownIt != m_keyDown.end()) ? wasDownIt->second : false;
             ke.repeat            = wasDown;
-            inputEvent.type = InputEventType::KeyPressed;
-            inputEvent.key  = ke;
+            inputEvent.type      = InputEventType::KeyPressed;
+            inputEvent.key       = ke;
 
             m_keyDown[ke.key] = true;
             if (ke.repeat)
@@ -363,7 +363,7 @@ void SInput::update(float /*deltaTime*/, World& world)
                 return;
 
             InputEvent inputEvent{};
-            KeyEvent ke{};
+            KeyEvent   ke{};
             ke.key          = keyCodeFromSFML(e.scancode);
             ke.alt          = e.alt;
             ke.ctrl         = e.control;
@@ -384,7 +384,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             if (forwardToImGuiAndCheckCapture(e))
                 return;
 
-            InputEvent inputEvent{};
+            InputEvent     inputEvent{};
             MouseMoveEvent mm{};
             mm.position          = Vec2i{e.position.x, e.position.y};
             inputEvent.type      = InputEventType::MouseMoved;
@@ -445,7 +445,7 @@ void SInput::update(float /*deltaTime*/, World& world)
                 return;
 
             InputEvent inputEvent{};
-            TextEvent te{};
+            TextEvent  te{};
             te.unicode      = e.unicode;
             inputEvent.type = InputEventType::TextEntered;
             inputEvent.text = te;

@@ -1,7 +1,7 @@
 #include "SParticle.h"
 #include <algorithm>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <iomanip>
 #include <random>
@@ -17,82 +17,6 @@
 
 namespace Systems
 {
-
-const sf::Texture* SParticle::loadTexture(const std::string& filepath)
-{
-    if (filepath.empty())
-    {
-        return nullptr;
-    }
-
-    static uint64_t s_textureLoadAttempt = 0;
-    const uint64_t  loadAttempt          = s_textureLoadAttempt++;
-
-    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
-    const std::string          resolvedStr  = resolvedPath.string();
-
-    if (loadAttempt < 6)
-    {
-        std::error_code ec;
-        const auto      cwd    = std::filesystem::current_path(ec);
-        const auto      exeDir = Internal::ExecutablePaths::getExecutableDir();
-        LOG_INFO("SParticle::loadTexture attempt {} filepath='{}' resolved='{}' cwd='{}' exeDir='{}'",
-                 loadAttempt,
-                 filepath,
-                 resolvedStr,
-                 ec ? std::string("<error>") : cwd.string(),
-                 exeDir.string());
-    }
-
-    auto it = m_textureCache.find(resolvedStr);
-    if (it != m_textureCache.end())
-    {
-        return &it->second;
-    }
-
-    {
-        std::error_code ec;
-        const bool      exists = std::filesystem::exists(resolvedPath, ec);
-        if (ec)
-        {
-            LOG_WARN("SParticle::loadTexture: exists() error for '{}' : {}", resolvedStr, ec.message());
-        }
-        if (!exists)
-        {
-            LOG_WARN("SParticle::loadTexture: file does not exist: '{}' (original='{}')", resolvedStr, filepath);
-            return nullptr;
-        }
-    }
-
-    if (!m_window || !m_window->isOpen())
-    {
-        return nullptr;
-    }
-
-    // Ensure the window context is active before creating/uploading textures.
-    if (!m_window->setActive(true))
-    {
-        LOG_WARN("SParticle::loadTexture: setActive(true) failed, skipping load for '{}'", resolvedStr);
-        return nullptr;
-    }
-
-    sf::Texture texture;
-
-    std::string loadError;
-    const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
-    if (!loaded)
-    {
-        LOG_WARN("SParticle::loadTexture: failed to load '{}' : {}", resolvedStr, loadError);
-        return nullptr;
-    }
-
-    auto [insertedIt, inserted] = m_textureCache.emplace(resolvedStr, std::move(texture));
-    (void)inserted;
-    return &insertedIt->second;
-
-}
-
-
 const sf::Texture* SParticle::getCachedTexture(const std::string& resolvedKey) const
 {
     auto it = m_textureCache.find(resolvedKey);
@@ -111,7 +35,7 @@ void SParticle::requestTextureLoad(const std::string& filepath)
     }
 
     const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
-    const std::string          resolvedStr  = resolvedPath.string();
+    const std::string           resolvedStr  = resolvedPath.string();
 
     if (resolvedStr.empty())
     {
@@ -148,7 +72,7 @@ void SParticle::processQueuedTextureLoads()
 
     // Limit work per frame.
     constexpr size_t kMaxLoadsPerFrame = 2;
-    size_t          loadsThisFrame     = 0;
+    size_t           loadsThisFrame    = 0;
 
     static uint64_t s_debugLoadsLogged = 0;
 
@@ -610,7 +534,10 @@ static void emitParticle(::Components::CParticleEmitter* emitter, const Vec2& wo
     emitter->getParticles().push_back(spawnParticle(emitter, worldPosition, entityRotation));
 }
 
-SParticle::SParticle() : m_vertexArray(sf::PrimitiveType::Triangles), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false) {}
+SParticle::SParticle()
+    : m_vertexArray(sf::PrimitiveType::Triangles), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false)
+{
+}
 
 SParticle::~SParticle()
 {
@@ -724,8 +651,8 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
     if (!texturePath.empty())
     {
         const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
-        const std::string          resolvedStr  = resolvedPath.string();
-        texture                                  = getCachedTexture(resolvedStr);
+        const std::string resolvedStr = resolvedPath.string();
+        texture                       = getCachedTexture(resolvedStr);
         if (!texture)
         {
             requestTextureLoad(texturePath);
@@ -734,9 +661,7 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
 
     if (s_renderEmitterFrameIndex < 3)
     {
-        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture end (texture={})",
-                 s_renderEmitterFrameIndex,
-                 texture ? "yes" : "no");
+        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture end (texture={})", s_renderEmitterFrameIndex, texture ? "yes" : "no");
     }
 
     // Clear vertex array for this emitter
@@ -775,7 +700,8 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         const float clampedAlpha = std::clamp(particle.alpha, 0.0f, 1.0f);
         const auto  alphaByte    = static_cast<std::uint8_t>(clampedAlpha * 255.0f);
         // If a texture is missing/unavailable, fall back to a visible white quad.
-        sf::Color   color = texture ? sf::Color(particle.color.r, particle.color.g, particle.color.b, alphaByte) : sf::Color(255, 255, 255, alphaByte);
+        sf::Color color = texture ? sf::Color(particle.color.r, particle.color.g, particle.color.b, alphaByte)
+                                  : sf::Color(255, 255, 255, alphaByte);
 
         if (texture)
         {
@@ -802,8 +728,8 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             }
 
             // Texture coordinates (in pixels for SFML - confirmed by official docs)
-            sf::Vector2u texSize      = texture->getSize();
-            sf::Vector2f texCoords[4] = {
+            sf::Vector2u       texSize      = texture->getSize();
+            const sf::Vector2f texCoords[4] = {
                 sf::Vector2f(0.0f, 0.0f),                                                    // Top-left
                 sf::Vector2f(static_cast<float>(texSize.x), 0.0f),                           // Top-right
                 sf::Vector2f(static_cast<float>(texSize.x), static_cast<float>(texSize.y)),  // Bottom-right

@@ -23,9 +23,8 @@ public:
 
     static bool loadTextureFromFileBytes(const std::filesystem::path& path, sf::Texture& outTexture, std::string* outError = nullptr);
 
-    static bool loadSoundBufferFromFileBytes(const std::filesystem::path& path,
-                                             sf::SoundBuffer&            outBuffer,
-                                             std::string*                outError = nullptr);
+    static bool
+    loadSoundBufferFromFileBytes(const std::filesystem::path& path, sf::SoundBuffer& outBuffer, std::string* outError = nullptr);
 
 private:
     static void setError(std::string* outError, const std::string& message);

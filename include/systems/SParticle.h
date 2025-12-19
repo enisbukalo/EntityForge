@@ -90,7 +90,6 @@ private:
     /** @brief Deleted assignment operator */
     SParticle& operator=(const SParticle&) = delete;
 
-    const sf::Texture* loadTexture(const std::string& filepath);
     void               requestTextureLoad(const std::string& filepath);
     const sf::Texture* getCachedTexture(const std::string& resolvedKey) const;
 

@@ -8,9 +8,9 @@
 #include <SystemLocator.h>
 
 #include <chrono>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <cstdlib>
 
 #include "AudioManager.h"
 #include "Barrel.h"
@@ -156,10 +156,8 @@ int main()
         auto lastTick = std::chrono::steady_clock::now();
 
         LOG_INFO_CONSOLE("Entering main loop...");
-        LOG_DEBUG_CONSOLE("Renderer window: {}",
-                          engine.getRenderer().getWindow() ? "valid" : "null");
-        LOG_DEBUG_CONSOLE("Window is open: {}",
-                          engine.getRenderer().isWindowOpen() ? "yes" : "no");
+        LOG_DEBUG_CONSOLE("Renderer window: {}", engine.getRenderer().getWindow() ? "valid" : "null");
+        LOG_DEBUG_CONSOLE("Window is open: {}", engine.getRenderer().isWindowOpen() ? "yes" : "no");
         LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
 
         int frameCount = 0;
@@ -182,10 +180,8 @@ int main()
 
         LOG_INFO_CONSOLE("Main loop exited after {} frames", frameCount);
         LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
-        LOG_DEBUG_CONSOLE("Renderer window: {}",
-                          engine.getRenderer().getWindow() ? "valid" : "null");
-        LOG_DEBUG_CONSOLE("Window is open: {}",
-                          engine.getRenderer().isWindowOpen() ? "yes" : "no");
+        LOG_DEBUG_CONSOLE("Renderer window: {}", engine.getRenderer().getWindow() ? "valid" : "null");
+        LOG_DEBUG_CONSOLE("Window is open: {}", engine.getRenderer().isWindowOpen() ? "yes" : "no");
 
         LOG_INFO_CONSOLE("Exiting normally");
         Logger::shutdown();

@@ -1,10 +1,10 @@
 #include "SRenderer.h"
+#include <SFML/Window/Context.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
-#include <SFML/Window/Context.hpp>
 #include <unordered_set>
 #include <vector>
 #include "CCamera.h"
@@ -19,8 +19,8 @@
 #include "ExecutablePaths.h"
 #include "FileUtilities.h"
 #include "Logger.h"
-#include "SParticle.h"
 #include "SFMLResourceLoader.h"
+#include "SParticle.h"
 #include "World.h"
 
 namespace Systems
@@ -145,14 +145,12 @@ void SRenderer::render(World& world)
         {
             if (s_renderFrameIndex < 3)
             {
-                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads begin",
-                         s_renderFrameIndex);
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads begin", s_renderFrameIndex);
             }
             m_particleSystem->processQueuedTextureLoads();
             if (s_renderFrameIndex < 3)
             {
-                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads end",
-                         s_renderFrameIndex);
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads end", s_renderFrameIndex);
             }
         }
     }
@@ -385,7 +383,7 @@ void SRenderer::requestTextureLoad(const std::string& filepath)
     }
 
     const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
-    const std::string          resolvedStr  = resolvedPath.string();
+    const std::string           resolvedStr  = resolvedPath.string();
 
     if (resolvedStr.empty())
     {
@@ -423,7 +421,7 @@ void SRenderer::processQueuedTextureLoads()
 
     // Load at most N textures per frame to avoid stalls.
     constexpr size_t kMaxLoadsPerFrame = 4;
-    size_t          loadsThisFrame     = 0;
+    size_t           loadsThisFrame    = 0;
 
     static uint64_t s_debugLoadsLogged = 0;
 
@@ -438,10 +436,6 @@ void SRenderer::processQueuedTextureLoads()
         {
             LOG_INFO("SRenderer::processQueuedTextureLoads: begin '{}'", resolvedStr);
             ++s_debugLoadsLogged;
-        }
-
-        if (logThis)
-        {
             const auto genTexturesPtr = sf::Context::getFunction("glGenTextures");
             const auto texImage2DPtr  = sf::Context::getFunction("glTexImage2D");
             LOG_INFO("SRenderer::processQueuedTextureLoads: glGenTextures={} glTexImage2D={}",
@@ -474,9 +468,9 @@ void SRenderer::processQueuedTextureLoads()
             LOG_INFO("SRenderer::processQueuedTextureLoads: loading '{}'", resolvedStr);
         }
 
-        sf::Texture  texture;
-        std::string  loadError;
-        const bool   loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
+        sf::Texture texture;
+        std::string loadError;
+        const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
 
         if (!loaded)
         {
@@ -489,9 +483,7 @@ void SRenderer::processQueuedTextureLoads()
 
         if (logThis)
         {
-            LOG_INFO("SRenderer::processQueuedTextureLoads: cached '{}' (cacheSize={})",
-                     resolvedStr,
-                     m_textureCache.size());
+            LOG_INFO("SRenderer::processQueuedTextureLoads: cached '{}' (cacheSize={})", resolvedStr, m_textureCache.size());
         }
 
         it = m_queuedTextureLoads.erase(it);
@@ -520,7 +512,7 @@ const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
     }
 
     const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
-    const std::string          resolvedStr  = resolvedPath.string();
+    const std::string           resolvedStr  = resolvedPath.string();
 
     // Check if texture is already cached
     auto it = m_textureCache.find(resolvedStr);
@@ -564,14 +556,14 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
         return nullptr;
     }
 
-    const std::filesystem::path resolvedVertexPath = vertexPath.empty()
-                                                     ? std::filesystem::path{}
-                                                     : Internal::ExecutablePaths::resolveRelativeToExecutableDir(vertexPath);
+    const std::filesystem::path resolvedVertexPath   = vertexPath.empty()
+                                                           ? std::filesystem::path{}
+                                                           : Internal::ExecutablePaths::resolveRelativeToExecutableDir(vertexPath);
     const std::filesystem::path resolvedFragmentPath = fragmentPath.empty()
-                                                       ? std::filesystem::path{}
-                                                       : Internal::ExecutablePaths::resolveRelativeToExecutableDir(fragmentPath);
+                                                           ? std::filesystem::path{}
+                                                           : Internal::ExecutablePaths::resolveRelativeToExecutableDir(fragmentPath);
 
-    const std::string resolvedVertexStr   = resolvedVertexPath.empty() ? std::string{} : resolvedVertexPath.string();
+    const std::string resolvedVertexStr = resolvedVertexPath.empty() ? std::string{} : resolvedVertexPath.string();
     const std::string resolvedFragmentStr = resolvedFragmentPath.empty() ? std::string{} : resolvedFragmentPath.string();
 
     // Create cache key from both paths
@@ -710,8 +702,8 @@ void SRenderer::renderEntity(Entity entity, World& world)
             {
                 // Cache-only in the hot render path: if missing, queue it and draw fallback.
                 const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
-                const std::string          resolvedStr  = resolvedPath.string();
-                texture                                  = getCachedTexture(resolvedStr);
+                const std::string resolvedStr = resolvedPath.string();
+                texture                       = getCachedTexture(resolvedStr);
                 if (!texture)
                 {
                     requestTextureLoad(texturePath);

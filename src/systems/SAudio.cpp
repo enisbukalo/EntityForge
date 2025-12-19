@@ -133,7 +133,7 @@ bool SAudio::loadSound(const std::string& id, const std::string& filepath, Audio
 #endif
 
         const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
-        const std::string          resolvedStr  = resolvedPath.string();
+        const std::string           resolvedStr  = resolvedPath.string();
 
         std::error_code ec;
         const bool      exists = std::filesystem::exists(resolvedPath, ec);
@@ -149,7 +149,7 @@ bool SAudio::loadSound(const std::string& id, const std::string& filepath, Audio
 
         sf::SoundBuffer buffer;
         std::string     loadError;
-        const bool      success = Internal::SFMLResourceLoader::loadSoundBufferFromFileBytes(resolvedPath, buffer, &loadError);
+        const bool success = Internal::SFMLResourceLoader::loadSoundBufferFromFileBytes(resolvedPath, buffer, &loadError);
 
 #ifndef _WIN32
         if (oldStderr != -1)
