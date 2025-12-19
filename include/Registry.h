@@ -122,7 +122,24 @@ public:
      */
     bool has(Entity entity) const override
     {
-        return entity.index < m_sparse.size() && m_sparse[entity.index] != kInvalid && m_entities[m_sparse[entity.index]] == entity;
+        if (entity.index >= m_sparse.size())
+        {
+            return false;
+        }
+
+        const uint32_t denseIndex = m_sparse[entity.index];
+        if (denseIndex == kInvalid)
+        {
+            return false;
+        }
+
+        // Guard against stale/corrupt sparse mapping.
+        if (denseIndex >= m_entities.size())
+        {
+            return false;
+        }
+
+        return m_entities[denseIndex] == entity;
     }
 
     /**

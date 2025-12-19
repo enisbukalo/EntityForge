@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include <Logger.h>
+
 #include <World.h>
 
 namespace Example
@@ -46,11 +48,19 @@ void BarrelSpawner::onCreate(Entity /*self*/, World& world)
 
     rebuildDistributions();
 
+    LOG_INFO("BarrelSpawner: spawning {} barrels", static_cast<unsigned long long>(m_barrelCount));
+
     for (size_t i = 0; i < m_barrelCount; ++i)
     {
+        if (i > 0 && (i % 25u) == 0u)
+        {
+            LOG_INFO("BarrelSpawner: spawned {}/{}", static_cast<unsigned long long>(i), static_cast<unsigned long long>(m_barrelCount));
+        }
         const Vec2 pos{m_distX(m_rng), m_distY(m_rng)};
         (void)spawnBarrel(world, pos);
     }
+
+    LOG_INFO("BarrelSpawner: finished spawning {} barrels", static_cast<unsigned long long>(m_barrelCount));
 
     m_hasSpawned = true;
 }

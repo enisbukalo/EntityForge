@@ -34,6 +34,7 @@ void Systems::SScript::update(float deltaTime, World& world)
 
         if (!script->created)
         {
+            LOG_INFO("SScript: onCreate begin E{}:G{} type='{}'", entity.index, entity.generation, script->scriptTypeName);
             script->instance->onCreate(entity, world);
             // Re-fetch script pointer after onCreate because the component store may have
             // reallocated if new scripts were added during onCreate (e.g., spawning entities)
@@ -43,6 +44,8 @@ void Systems::SScript::update(float deltaTime, World& world)
                 entityIndex++;
                 continue;
             }
+
+            LOG_INFO("SScript: onCreate end   E{}:G{} type='{}'", entity.index, entity.generation, script->scriptTypeName);
 
             script->created = true;
         }

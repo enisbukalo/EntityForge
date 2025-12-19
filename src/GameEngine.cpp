@@ -129,6 +129,8 @@ void GameEngine::readInputs()
 
 void GameEngine::update(float deltaTime)
 {
+    static uint64_t s_frameIndex = 0;
+
     auto runStage = [this, deltaTime](Systems::UpdateStage stage)
     {
         for (auto* system : m_systemOrder)
@@ -136,6 +138,11 @@ void GameEngine::update(float deltaTime)
             if (!system || system->stage() != stage)
             {
                 continue;
+            }
+
+            if (s_frameIndex < 3)
+            {
+                LOG_INFO("Frame {}: {} stage {} begin", s_frameIndex, system->name(), stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
             }
 
             if (system->usesFixedTimestep())
@@ -152,31 +159,91 @@ void GameEngine::update(float deltaTime)
                     system->fixedUpdate(m_timeStep, m_world);
                     m_accumulator -= m_timeStep;
                 }
+
+                if (s_frameIndex < 3)
+                {
+                    LOG_INFO("Frame {}: {} stage {} end", s_frameIndex, system->name(), stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
+                }
                 continue;
             }
 
             system->update(deltaTime, m_world);
+
+            if (s_frameIndex < 3)
+            {
+                LOG_INFO("Frame {}: {} stage {} end", s_frameIndex, system->name(), stage == Systems::UpdateStage::PreFlush ? "PreFlush" : "PostFlush");
+            }
         }
     };
 
+    if (s_frameIndex < 3)
+    {
+        LOG_INFO("Frame {}: PreFlush begin", s_frameIndex);
+    }
     runStage(Systems::UpdateStage::PreFlush);
 
     // Apply deferred structural commands after pre-flush systems have finished updating to avoid iterator invalidation
+    if (s_frameIndex < 3)
+    {
+        LOG_INFO("Frame {}: flushCommandBuffer begin", s_frameIndex);
+    }
     m_world.flushCommandBuffer();
+    if (s_frameIndex < 3)
+    {
+        LOG_INFO("Frame {}: flushCommandBuffer end", s_frameIndex);
+        LOG_INFO("Frame {}: PostFlush begin", s_frameIndex);
+    }
 
     runStage(Systems::UpdateStage::PostFlush);
+
+    if (s_frameIndex < 3)
+    {
+        LOG_INFO("Frame {}: update end", s_frameIndex);
+    }
+
+    ++s_frameIndex;
 }
 
 void GameEngine::render()
 {
+    static uint64_t s_renderFrameIndex = 0;
+
     if (!m_renderer)
     {
         return;
     }
 
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: render begin", s_renderFrameIndex);
+        LOG_INFO("Frame {}: render clear begin", s_renderFrameIndex);
+    }
+
     m_renderer->clear(Color::Black);
+
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: render clear end", s_renderFrameIndex);
+        LOG_INFO("Frame {}: render world begin", s_renderFrameIndex);
+    }
+
     m_renderer->render(m_world);
+
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: render world end", s_renderFrameIndex);
+        LOG_INFO("Frame {}: render display begin", s_renderFrameIndex);
+    }
+
     m_renderer->display();
+
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: render display end", s_renderFrameIndex);
+        LOG_INFO("Frame {}: render end", s_renderFrameIndex);
+    }
+
+    ++s_renderFrameIndex;
 }
 
 bool GameEngine::is_running() const

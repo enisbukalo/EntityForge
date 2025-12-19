@@ -521,11 +521,18 @@ void SParticle::update(float deltaTime, World& world)
 
 void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& world)
 {
+    static uint64_t s_renderEmitterFrameIndex = 0;
+
     sf::RenderWindow* targetWindow = window ? window : m_window;
 
     if (m_initialized == false || targetWindow == nullptr || !entity.isValid())
     {
         return;
+    }
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter begin E{}:G{}", s_renderEmitterFrameIndex, entity.index, entity.generation);
     }
 
     auto* emitter = world.components().tryGet<::Components::CParticleEmitter>(entity);
@@ -534,7 +541,24 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         return;
     }
 
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter got emitter (particles={}, alive={}, texturePath='{}')",
+                 s_renderEmitterFrameIndex,
+                 emitter->getParticles().size(),
+                 emitter->getAliveCount(),
+                 emitter->getTexturePath());
+        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture begin", s_renderEmitterFrameIndex);
+    }
+
     const sf::Texture* texture = loadTexture(emitter->getTexturePath());
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture end (texture={})",
+                 s_renderEmitterFrameIndex,
+                 texture ? "yes" : "no");
+    }
 
     // Clear vertex array for this emitter
     m_vertexArray.clear();
@@ -545,6 +569,23 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         if (particle.alive == false)
         {
             continue;
+        }
+
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            // Throttle: only log a small sample of alive particles
+            static uint32_t s_loggedAliveParticles = 0;
+            if (s_loggedAliveParticles < 8)
+            {
+                LOG_INFO("Frame {}: SParticle alive particle sample pos=({}, {}) size={} rot={} alpha={}",
+                         s_renderEmitterFrameIndex,
+                         particle.position.x,
+                         particle.position.y,
+                         particle.size,
+                         particle.rotation,
+                         particle.alpha);
+                ++s_loggedAliveParticles;
+            }
         }
 
         // Render in world space (meters). The active sf::View handles world->screen mapping.
@@ -655,8 +696,28 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             states.texture = texture;
         }
 
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SParticle::renderEmitter draw begin (verts={}, textured={})",
+                     s_renderEmitterFrameIndex,
+                     m_vertexArray.getVertexCount(),
+                     texture ? "yes" : "no");
+        }
+
         targetWindow->draw(m_vertexArray, states);
+
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SParticle::renderEmitter draw end", s_renderEmitterFrameIndex);
+        }
     }
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter end E{}:G{}", s_renderEmitterFrameIndex, entity.index, entity.generation);
+    }
+
+    ++s_renderEmitterFrameIndex;
 }
 
 }  // namespace Systems

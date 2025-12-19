@@ -72,9 +72,9 @@ For details (components, systems, scripting lifecycle), see the Wiki links above
 
 - C++17 or later
 - CMake 3.28+
-- SFML 2.6.x
+- SFML 3.0.2+
 - Box2D v3.1.1
-- Dear ImGui 1.88 + ImGui-SFML 2.6
+- Dear ImGui v1.91.9b + ImGui-SFML v3.0
 - GoogleTest (tests)
 - nlohmann/json v3.11.3
 

@@ -94,6 +94,8 @@ void SRenderer::update(float deltaTime, World& world)
 
 void SRenderer::render(World& world)
 {
+    static uint64_t s_renderFrameIndex = 0;
+
     if (!m_initialized || !m_window || !m_window->isOpen())
     {
         return;
@@ -129,6 +131,11 @@ void SRenderer::render(World& world)
             }
         });
 
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render queue built ({} items)", s_renderFrameIndex, renderQueue.size());
+    }
+
     std::sort(renderQueue.begin(),
               renderQueue.end(),
               [](const RenderItem& a, const RenderItem& b) { return a.zIndex < b.zIndex; });
@@ -161,6 +168,11 @@ void SRenderer::render(World& world)
         cameras.push_back({Entity::null(), &defaultCamera});
     }
 
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render cameras ({} total)", s_renderFrameIndex, cameras.size());
+    }
+
     for (const CameraItem& cameraItem : cameras)
     {
         const ::Components::CCamera& camera = *cameraItem.camera;
@@ -169,23 +181,108 @@ void SRenderer::render(World& world)
             continue;
         }
 
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer camera begin", s_renderFrameIndex);
+            LOG_INFO("Frame {}: SRenderer buildViewFromCamera begin", s_renderFrameIndex);
+        }
+
         const sf::View view = Internal::buildViewFromCamera(camera, m_window->getSize());
+
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer buildViewFromCamera end", s_renderFrameIndex);
+            LOG_INFO("Frame {}: SRenderer setView begin", s_renderFrameIndex);
+        }
+
         m_window->setView(view);
 
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer setView end", s_renderFrameIndex);
+        }
+
+        size_t itemIndex = 0;
         for (const RenderItem& item : renderQueue)
         {
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} begin E{}:G{} particle={}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation,
+                         item.isParticleEmitter);
+            }
+
             if (item.isParticleEmitter)
             {
                 if (m_particleSystem && m_particleSystem->isInitialized())
                 {
+                    if (s_renderFrameIndex < 3)
+                    {
+                        LOG_INFO("Frame {}: RenderItem {} particle render begin E{}:G{}",
+                                 s_renderFrameIndex,
+                                 itemIndex,
+                                 item.entity.index,
+                                 item.entity.generation);
+                    }
                     m_particleSystem->renderEmitter(item.entity, m_window.get(), world);
+                    if (s_renderFrameIndex < 3)
+                    {
+                        LOG_INFO("Frame {}: RenderItem {} particle render end   E{}:G{}",
+                                 s_renderFrameIndex,
+                                 itemIndex,
+                                 item.entity.index,
+                                 item.entity.generation);
+                    }
                 }
+
+                if (s_renderFrameIndex < 3)
+                {
+                    LOG_INFO("Frame {}: RenderItem {} end   E{}:G{} particle=true",
+                             s_renderFrameIndex,
+                             itemIndex,
+                             item.entity.index,
+                             item.entity.generation);
+                }
+                ++itemIndex;
                 continue;
             }
 
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} entity render begin E{}:G{}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+            }
             renderEntity(item.entity, world);
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} entity render end   E{}:G{}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+                LOG_INFO("Frame {}: RenderItem {} end   E{}:G{} particle=false",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+            }
+
+            ++itemIndex;
+        }
+
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer camera end", s_renderFrameIndex);
         }
     }
+
+    ++s_renderFrameIndex;
 }
 
 void SRenderer::clear(const Color& color)
