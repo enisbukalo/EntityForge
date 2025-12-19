@@ -117,6 +117,13 @@ cmake --build ${BUILD_DIR} --config $BUILD_TYPE -j8 || {
     exit 1
 }
 
+# Copy GameEngine runtime DLLs next to the executable.
+# (When cross-compiling, CMake cannot reliably compute runtime DLL deps.)
+echo -e "${GREEN}Copying GameEngine runtime DLLs...${NC}"
+if [ -d "${GAMEENGINE_DIR}/bin" ]; then
+    cp -f "${GAMEENGINE_DIR}/bin/"*.dll "${BUILD_DIR}/" 2>/dev/null || true
+fi
+
 # Flatten build directory: move everything from bin to build root and clean up
 echo -e "${GREEN}Flattening build directory...${NC}"
 if [ -d "${BUILD_DIR}/bin" ]; then

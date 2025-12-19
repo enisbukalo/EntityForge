@@ -45,9 +45,9 @@ void SInput::shutdown()
     m_nextBindingId = 1;
 }
 
-static KeyCode keyCodeFromSFML(sf::Keyboard::Scan k)
+static KeyCode keyCodeFromSFML(sf::Keyboard::Scancode k)
 {
-    using K = sf::Keyboard::Scan;
+    using K = sf::Keyboard::Scancode;
     switch (k)
     {
         case K::A:

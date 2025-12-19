@@ -1,60 +1,37 @@
-# Bounce Game Example
+# Fishing Game Example
 
-This is a simple example game demonstrating the use of the GameEngine library.
+This is a small example game that consumes the installed `GameEngine` package.
 
-## Features
-
-- 2 balls with gravity that bounce off the floor and walls
-- Physics simulation with restitution (bounciness)
-- Simple rendering with SFML
-
-## Building
+## Building (recommended: via the dev container)
 
 ### Prerequisites
-- Docker container with MinGW cross-compilation setup
-- GameEngine library (in `GameEngine-Windows-Debug` directory)
+- The project dev container is available via `docker-compose`
 
-### Build Instructions
+### Build the engine package (Windows cross-compile)
 
-Build the example inside the Docker container:
-
-```bash
-# From the project root, enter the container
-docker-compose exec dev bash
-
-# Navigate to Example_Game and run the build script
-cd Example_Game
-chmod +x build_example.sh
-./build_example.sh
-```
-
-Or run it directly without entering the container:
+From the repo root:
 
 ```bash
-docker-compose exec dev bash -c "cd Example_Game && dos2unix build_example.sh && chmod +x build_example.sh && ./build_example.sh"
+docker-compose exec dev ./build_tools/build.sh --windows --type Debug
 ```
 
-### Running
+This produces a packaged install at `package_windows/` used by the example.
 
-The executable will be in `Example_Game/build/bin/BounceGame.exe`
+### Build the example (Windows cross-compile)
 
-Run it on Windows (outside the container):
+From the repo root:
 
 ```bash
-cd Example_Game/build/bin
-./BounceGame.exe
+docker-compose exec dev ./Example/builds.sh --type Debug
 ```
 
-## Controls
+Use `--clean` if you want a full rebuild:
 
-- Press `ESC` to quit
-- Close the window to exit
+```bash
+docker-compose exec dev ./Example/builds.sh --clean
+```
 
-## Description
+## Output
 
-The game creates:
-- A gray floor at the bottom of the window
-- A red ball starting at position (200, 100) with horizontal velocity
-- A blue ball starting at position (600, 150) with initial velocity
-
-Both balls fall under gravity and bounce off the floor and walls with a restitution coefficient of 0.8.
+- Executable: `Example/build/FishingGame.exe`
+- Assets are copied next to the executable under `Example/build/assets/`

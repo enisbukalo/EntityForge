@@ -49,13 +49,27 @@ RUN wget -O /tmp/sfml.tar.gz https://www.sfml-dev.org/files/SFML-3.0.2-linux-gcc
 # Set up working directory
 WORKDIR /app
 
-# Download and setup SFML 2.6.1 for Windows (MinGW GCC 13.1.0)
+# Build and install SFML 3.0.2 for Windows (MinGW GCC 13) into a prefix that CMake can discover.
+# SFML 3 prebuilt Windows packages are for GCC 14.2 UCRT; our cross-compiler in this image is GCC 13,
+# so we build SFML from source to avoid toolchain/ABI mismatches.
 RUN mkdir -p /opt/sfml-windows && \
-    cd /opt/sfml-windows && \
-    wget https://www.sfml-dev.org/files/SFML-2.6.1-windows-gcc-13.1.0-mingw-64-bit.zip && \
-    unzip SFML-2.6.1-windows-gcc-13.1.0-mingw-64-bit.zip && \
-    mv SFML-2.6.1 sfml && \
-    rm SFML-2.6.1-windows-gcc-13.1.0-mingw-64-bit.zip
+    wget -O /tmp/sfml-src.zip https://www.sfml-dev.org/files/SFML-3.0.2-sources.zip && \
+    unzip /tmp/sfml-src.zip -d /tmp && \
+    cmake -S /tmp/SFML-3.0.2 -B /tmp/sfml-build-windows -G Ninja \
+        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+        -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+        -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+        -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+        -DCMAKE_FIND_ROOT_PATH=/usr/x86_64-w64-mingw32 \
+        -DCMAKE_INSTALL_PREFIX=/opt/sfml-windows/sfml \
+        -DSFML_BUILD_EXAMPLES=OFF \
+        -DSFML_BUILD_TEST_SUITE=OFF \
+        -DSFML_BUILD_DOC=OFF \
+        -DBUILD_SHARED_LIBS=OFF && \
+    cmake --build /tmp/sfml-build-windows -- -j$(nproc) && \
+    cmake --install /tmp/sfml-build-windows && \
+    rm -rf /tmp/sfml-build-windows /tmp/SFML-3.0.2 /tmp/sfml-src.zip
 
 # Set environment variables for Windows builds
 ENV SFML_WINDOWS_ROOT=/opt/sfml-windows/sfml

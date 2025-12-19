@@ -4,7 +4,11 @@ include(CMakeFindDependencyMacro)
 
 # Find dependencies
 find_dependency(Threads)
-find_dependency(SFML 2.6 COMPONENTS graphics window system audio)
+
+# SFML config selection: our Windows cross-compile builds SFML as static in the dev container.
+# Propagate the required linkage choice to consumers of this installed package.
+set(SFML_STATIC_LIBRARIES @SFML_STATIC_LIBRARIES@)
+find_dependency(SFML @GAMEENGINE_SFML_MIN_VERSION@ COMPONENTS @GAMEENGINE_SFML_COMPONENTS@)
 find_dependency(OpenGL)
 find_dependency(box2d)
 

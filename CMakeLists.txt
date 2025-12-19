@@ -46,8 +46,14 @@ include(FetchContent)
 # Configure dependency caching
 set(FETCHCONTENT_BASE_DIR ${DEPS_CACHE_DIR})
 
-# Find SFML (pre-built for Windows cross-compilation)
-set(SFML_STATIC_LIBRARIES FALSE)
+# Find SFML
+# - Linux builds typically use shared libs (system/packaged).
+# - Our Windows cross-compile Docker image builds SFML as static, so request static there.
+if(MINGW)
+    set(SFML_STATIC_LIBRARIES TRUE)
+else()
+    set(SFML_STATIC_LIBRARIES FALSE)
+endif()
 find_package(SFML 3.0.2 REQUIRED COMPONENTS Graphics Window System Audio)
 
 # Find OpenGL (required for ImGui-SFML)
@@ -256,6 +262,11 @@ if(GAMEENGINE_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
+    # Dependencies required by consumers of the installed GameEngine package.
+    # Keep this aligned with the SFML version/components used by the build.
+    set(GAMEENGINE_SFML_MIN_VERSION 3.0.2)
+    set(GAMEENGINE_SFML_COMPONENTS Graphics Window System Audio)
+
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/GameEngine)
 
     # Install library and dependencies
@@ -277,6 +288,12 @@ if(GAMEENGINE_INSTALL)
         ${ENGINE_PHYSICS_DIR}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine
         FILES_MATCHING PATTERN "*.h"
+        PATTERN "SRenderer.h" EXCLUDE
+        PATTERN "SParticle.h" EXCLUDE
+        PATTERN "SInput.h" EXCLUDE
+        PATTERN "SAudio.h" EXCLUDE
+        PATTERN "CameraView.h" EXCLUDE
+        PATTERN "CameraProjection.h" EXCLUDE
     )
 
     # Install ImGui and ImGui-SFML headers
