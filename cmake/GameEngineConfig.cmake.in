@@ -4,6 +4,7 @@ include(CMakeFindDependencyMacro)
 
 # Find dependencies
 find_dependency(Threads)
+find_dependency(spdlog)
 
 # SFML config selection: our Windows cross-compile builds SFML as static in the dev container.
 # Propagate the required linkage choice to consumers of this installed package.

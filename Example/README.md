@@ -22,13 +22,13 @@ This produces a packaged install at `package_windows/` used by the example.
 From the repo root:
 
 ```bash
-docker-compose exec dev ./Example/builds.sh --type Debug
+docker-compose exec dev ./Example/build.sh --type Debug
 ```
 
 Use `--clean` if you want a full rebuild:
 
 ```bash
-docker-compose exec dev ./Example/builds.sh --clean
+docker-compose exec dev ./Example/build.sh --clean
 ```
 
 ## Output

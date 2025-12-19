@@ -81,6 +81,9 @@ fi
 echo -e "${GREEN}Using local build from $PARENT_PACKAGE_DIR${NC}"
 GAMEENGINE_DIR="$PARENT_PACKAGE_DIR"
 
+# Help CMake find packaged dependencies when cross-compiling.
+SPDLOG_DIR="${GAMEENGINE_DIR}/lib/cmake/spdlog"
+
 # Check if toolchain file exists
 if [ ! -f "$TOOLCHAIN_FILE" ]; then
     echo -e "${RED}Error: Toolchain file not found at $TOOLCHAIN_FILE${NC}"
@@ -99,14 +102,18 @@ mkdir -p ${BUILD_DIR}
 
 # Configure project with CMake for Windows cross-compilation
 echo -e "${GREEN}Configuring Example Game for Windows (MinGW)...${NC}"
-cmake -B ${BUILD_DIR} \
-    -G Ninja \
-    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
-    -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-    -DCMAKE_PREFIX_PATH="$GAMEENGINE_DIR;$GAMEENGINE_DIR/lib/cmake" \
-    -DGameEngine_DIR="$GAMEENGINE_DIR/lib/cmake/GameEngine" \
-    -Dbox2d_DIR="$GAMEENGINE_DIR/lib/cmake/box2d" || {
-        echo -e "${RED}Configuration failed!${NC}"
+cmake_args=(
+    -B "${BUILD_DIR}"
+    -G Ninja
+    "-DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_FILE}"
+    "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
+    "-DCMAKE_PREFIX_PATH=${GAMEENGINE_DIR};${GAMEENGINE_DIR}/lib/cmake"
+    "-DGameEngine_DIR=${GAMEENGINE_DIR}/lib/cmake/GameEngine"
+    "-Dbox2d_DIR=${GAMEENGINE_DIR}/lib/cmake/box2d"
+    "-Dspdlog_DIR=${SPDLOG_DIR}"
+)
+
+cmake "${cmake_args[@]}" || {
         exit 1
     }
 
