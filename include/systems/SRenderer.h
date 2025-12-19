@@ -34,16 +34,23 @@ struct WindowConfig
     unsigned int antialiasing = 0;              ///< Anti-aliasing level (0, 2, 4, 8, 16)
 
     /**
+     * @brief Gets SFML window state (windowed vs fullscreen)
+     * @return SFML state
+     */
+    sf::State getState() const
+    {
+        return fullscreen ? sf::State::Fullscreen : sf::State::Windowed;
+    }
+
+    /**
      * @brief Gets SFML window style flags based on configuration
      * @return SFML style flags
      */
     uint32_t getStyleFlags() const
     {
-        if (fullscreen)
-        {
-            return sf::Style::Fullscreen;
-        }
-        return sf::Style::Titlebar | sf::Style::Close;
+        // In SFML 3, fullscreen is expressed via sf::State at window creation time.
+        // Style flags are decoration flags only.
+        return fullscreen ? sf::Style::None : (sf::Style::Titlebar | sf::Style::Close);
     }
 
     /**
@@ -53,7 +60,7 @@ struct WindowConfig
     sf::ContextSettings getContextSettings() const
     {
         sf::ContextSettings settings;
-        settings.antialiasingLevel = antialiasing;
+        settings.antiAliasingLevel = antialiasing;
         return settings;
     }
 };

@@ -48,7 +48,7 @@ set(FETCHCONTENT_BASE_DIR ${DEPS_CACHE_DIR})
 
 # Find SFML (pre-built for Windows cross-compilation)
 set(SFML_STATIC_LIBRARIES FALSE)
-find_package(SFML 2.6 REQUIRED COMPONENTS graphics window system audio)
+find_package(SFML 3.0.2 REQUIRED COMPONENTS Graphics Window System Audio)
 
 # Find OpenGL (required for ImGui-SFML)
 find_package(OpenGL REQUIRED)
@@ -91,18 +91,18 @@ FetchContent_Declare(nlohmann_json
 
 FetchContent_MakeAvailable(nlohmann_json)
 
-# Fetch ImGui (v1.88 is compatible with ImGui-SFML v2.6)
+# Fetch ImGui (newer version required by ImGui-SFML v3.0)
 FetchContent_Declare(IMGUI
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.88
+    GIT_TAG v1.91.9b
     GIT_SHALLOW ON)
 
 FetchContent_MakeAvailable(IMGUI)
 
-# Fetch ImGui-SFML (v2.6 for SFML 2.6.x compatibility)
+# Fetch ImGui-SFML (v3.0 for SFML 3.x compatibility)
 FetchContent_Declare(IMGUI_SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
-    GIT_TAG v2.6
+    GIT_TAG v3.0
     GIT_SHALLOW ON)
 
 FetchContent_GetProperties(IMGUI_SFML)
@@ -126,14 +126,13 @@ if(NOT imgui_sfml_POPULATED)
     )
 
     target_link_libraries(ImGui-SFML PUBLIC
-        sfml-graphics
-        sfml-window
-        sfml-system
+        SFML::Graphics
+        SFML::Window
+        SFML::System
         OpenGL::GL
     )
 
     target_compile_features(ImGui-SFML PUBLIC cxx_std_17)
-    target_compile_definitions(ImGui-SFML PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 
     # Create an alias to match the original target name
     add_library(ImGui-SFML::ImGui-SFML ALIAS ImGui-SFML)
@@ -230,10 +229,10 @@ endif()
 # Link against dependencies
 target_link_libraries(GameEngine
     PUBLIC
-    sfml-graphics
-    sfml-window
-    sfml-system
-    sfml-audio
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
     ImGui-SFML
     Threads::Threads
     box2d

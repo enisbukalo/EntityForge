@@ -20,13 +20,16 @@ RUN apt-get update && apt-get install -y \
     libxi-dev \
     libudev-dev \
     libgl1-mesa-dev \
+    libopenal-dev \
+    libvorbis-dev \
+    libflac-dev \
+    libfreetype6-dev \
     gcc-mingw-w64-x86-64 \
     g++-mingw-w64-x86-64 \
     wine \
     wine64 \
     libssl-dev \
     dos2unix \
-    libsfml-dev \
     cppcheck \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,6 +38,13 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0
     chmod +x cmake-3.28.0-linux-x86_64.sh && \
     ./cmake-3.28.0-linux-x86_64.sh --skip-license --prefix=/usr/local && \
     rm cmake-3.28.0-linux-x86_64.sh
+
+# Install SFML 3.0.2 for Linux (so find_package(SFML 3.0.2 ...) succeeds)
+RUN wget -O /tmp/sfml.tar.gz https://www.sfml-dev.org/files/SFML-3.0.2-linux-gcc-64-bit.tar.gz && \
+    tar -xzf /tmp/sfml.tar.gz -C /tmp && \
+    cp -r /tmp/SFML-3.0.2/* /usr/local/ && \
+    rm -rf /tmp/SFML-3.0.2 /tmp/sfml.tar.gz && \
+    ldconfig
 
 # Set up working directory
 WORKDIR /app

@@ -47,43 +47,51 @@ set_target_properties(FishingGame PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin"
 )
 
-# Copy GameEngine DLL to output directory on Windows
+# Copy runtime files + assets on Windows
 if(WIN32 OR MINGW)
-    # Determine DLL suffix based on build type
-    set(DLL_SUFFIX "")
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(DLL_SUFFIX "-d")
-    endif()
-
-    # Copy GameEngine shared library to output directory using the imported target's file
-    add_custom_command(TARGET FishingGame POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:GameEngine::GameEngine>"
-            "$<TARGET_FILE_DIR:FishingGame>"
-        COMMENT "Copying GameEngine runtime library to output directory"
-    )
-
-    # Copy SFML DLLs from container's SFML installation
-    if(DEFINED ENV{SFML_WINDOWS_ROOT})
-        foreach(component graphics window system audio)
-            add_custom_command(TARGET FishingGame POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    "$ENV{SFML_WINDOWS_ROOT}/bin/sfml-${component}${DLL_SUFFIX}-2.dll"
-                    "$<TARGET_FILE_DIR:FishingGame>"
-                COMMENT "Copying SFML ${component} DLL"
-            )
-        endforeach()
-        
-        # Copy OpenAL DLL (required by SFML audio)
+    # Native Windows builds: let CMake compute runtime DLL dependencies.
+    if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
         add_custom_command(TARGET FishingGame POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "$ENV{SFML_WINDOWS_ROOT}/bin/openal32.dll"
-                "$<TARGET_FILE_DIR:FishingGame>"
-            COMMENT "Copying OpenAL DLL"
+                $<TARGET_RUNTIME_DLLS:FishingGame>
+                $<TARGET_FILE_DIR:FishingGame>
+            COMMAND_EXPAND_LISTS
+            COMMENT "Copying runtime DLLs to output directory"
         )
     endif()
 
-    # Copy MinGW runtime DLLs
+    # Cross-compile builds (e.g. Linux->Windows in container): keep explicit copying.
+    # SFML 3 official shared binaries typically use a "-3" suffix; copy only if present.
+    if(CMAKE_CROSSCOMPILING AND DEFINED ENV{SFML_WINDOWS_ROOT})
+        set(DLL_SUFFIX "")
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            set(DLL_SUFFIX "-d")
+        endif()
+
+        foreach(component graphics window system audio)
+            set(_sfml_dll "$ENV{SFML_WINDOWS_ROOT}/bin/sfml-${component}${DLL_SUFFIX}-3.dll")
+            if(EXISTS "${_sfml_dll}")
+                add_custom_command(TARGET FishingGame POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${_sfml_dll}"
+                        "$<TARGET_FILE_DIR:FishingGame>"
+                    COMMENT "Copying SFML ${component} DLL"
+                )
+            endif()
+        endforeach()
+
+        set(_openal_dll "$ENV{SFML_WINDOWS_ROOT}/bin/openal32.dll")
+        if(EXISTS "${_openal_dll}")
+            add_custom_command(TARGET FishingGame POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${_openal_dll}"
+                    "$<TARGET_FILE_DIR:FishingGame>"
+                COMMENT "Copying OpenAL DLL"
+            )
+        endif()
+    endif()
+
+    # Copy MinGW runtime DLLs (used in the cross-compile container)
     add_custom_command(TARGET FishingGame POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "/usr/lib/gcc/x86_64-w64-mingw32/13-posix/libgcc_s_seh-1.dll"
@@ -96,7 +104,7 @@ if(WIN32 OR MINGW)
             "$<TARGET_FILE_DIR:FishingGame>"
         COMMENT "Copying MinGW runtime DLLs"
     )
-    
+
     # Copy assets folder to output directory
     add_custom_command(TARGET FishingGame POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

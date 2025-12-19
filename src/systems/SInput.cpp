@@ -37,7 +37,7 @@ void SInput::shutdown()
     m_mouseDown.clear();
     m_mousePressed.clear();
     m_mouseReleased.clear();
-    m_mousePosition = {0, 0};
+    m_mousePosition = Vec2i{0, 0};
     m_actionBindings.clear();
     m_actionStates.clear();
     m_subscribers.clear();
@@ -45,9 +45,9 @@ void SInput::shutdown()
     m_nextBindingId = 1;
 }
 
-static KeyCode keyCodeFromSFML(sf::Keyboard::Key k)
+static KeyCode keyCodeFromSFML(sf::Keyboard::Scan k)
 {
-    using K = sf::Keyboard;
+    using K = sf::Keyboard::Scan;
     switch (k)
     {
         case K::A:
@@ -183,17 +183,18 @@ static KeyCode keyCodeFromSFML(sf::Keyboard::Key k)
 
 static MouseButton mouseButtonFromSFML(sf::Mouse::Button mb)
 {
+    using B = sf::Mouse::Button;
     switch (mb)
     {
-        case sf::Mouse::Left:
+        case B::Left:
             return MouseButton::Left;
-        case sf::Mouse::Right:
+        case B::Right:
             return MouseButton::Right;
-        case sf::Mouse::Middle:
+        case B::Middle:
             return MouseButton::Middle;
-        case sf::Mouse::XButton1:
+        case B::Extra1:
             return MouseButton::XButton1;
-        case sf::Mouse::XButton2:
+        case B::Extra2:
             return MouseButton::XButton2;
         default:
             return MouseButton::Unknown;
@@ -228,186 +229,6 @@ void SInput::unbindAction(const std::string& actionName)
     m_actionStates.erase(actionName);
 }
 
-void SInput::processEvent(const sf::Event& event)
-{
-    bool imguiCaptured = false;
-    if (m_passToImGui)
-    {
-        ImGui::SFML::ProcessEvent(event);
-        imguiCaptured = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
-    }
-
-    InputEvent inputEvent{};
-
-    switch (event.type)
-    {
-        case sf::Event::KeyPressed:
-        {
-            KeyEvent ke{};
-            ke.key          = keyCodeFromSFML(event.key.code);
-            ke.alt          = event.key.alt;
-            ke.ctrl         = event.key.control;
-            ke.shift        = event.key.shift;
-            ke.system       = event.key.system;
-            ke.repeat       = false;  // SFML 2.6 doesn't provide repeat info
-            inputEvent.type = InputEventType::KeyPressed;
-            inputEvent.key  = ke;
-
-            if (m_passToImGui && imguiCaptured)
-                return;
-
-            m_keyDown[ke.key]    = true;
-            m_keyPressed[ke.key] = true;
-            break;
-        }
-        case sf::Event::KeyReleased:
-        {
-            KeyEvent ke{};
-            ke.key          = keyCodeFromSFML(event.key.code);
-            ke.alt          = event.key.alt;
-            ke.ctrl         = event.key.control;
-            ke.shift        = event.key.shift;
-            ke.system       = event.key.system;
-            ke.repeat       = false;  // SFML 2.6 doesn't provide repeat info
-            inputEvent.type = InputEventType::KeyReleased;
-            inputEvent.key  = ke;
-
-            if (m_passToImGui && imguiCaptured)
-                return;
-
-            m_keyDown[ke.key]     = false;
-            m_keyReleased[ke.key] = true;
-            m_keyRepeat.erase(ke.key);
-            break;
-        }
-        case sf::Event::MouseButtonPressed:
-        {
-            MouseEvent me{};
-            me.button        = mouseButtonFromSFML(event.mouseButton.button);
-            me.position      = {(int)event.mouseButton.x, (int)event.mouseButton.y};
-            inputEvent.type  = InputEventType::MouseButtonPressed;
-            inputEvent.mouse = me;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            m_mouseDown[me.button]    = true;
-            m_mousePressed[me.button] = true;
-            m_mousePosition           = me.position;
-            break;
-        }
-        case sf::Event::MouseButtonReleased:
-        {
-            MouseEvent me{};
-            me.button        = mouseButtonFromSFML(event.mouseButton.button);
-            me.position      = {(int)event.mouseButton.x, (int)event.mouseButton.y};
-            inputEvent.type  = InputEventType::MouseButtonReleased;
-            inputEvent.mouse = me;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            m_mouseDown[me.button]     = false;
-            m_mouseReleased[me.button] = true;
-            m_mousePosition            = me.position;
-            break;
-        }
-        case sf::Event::MouseMoved:
-        {
-            MouseMoveEvent mm{};
-            mm.position          = {event.mouseMove.x, event.mouseMove.y};
-            inputEvent.type      = InputEventType::MouseMoved;
-            inputEvent.mouseMove = mm;
-            m_mousePosition      = mm.position;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            break;
-        }
-        case sf::Event::MouseWheelScrolled:
-        {
-            WheelEvent we{};
-            we.delta         = event.mouseWheelScroll.delta;
-            we.position      = {(int)event.mouseWheelScroll.x, (int)event.mouseWheelScroll.y};
-            inputEvent.type  = InputEventType::MouseWheel;
-            inputEvent.wheel = we;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            break;
-        }
-        case sf::Event::TextEntered:
-        {
-            TextEvent te{};
-            te.unicode      = event.text.unicode;
-            inputEvent.type = InputEventType::TextEntered;
-            inputEvent.text = te;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            break;
-        }
-        case sf::Event::Closed:
-        {
-            inputEvent.type   = InputEventType::WindowClosed;
-            inputEvent.window = WindowEvent{};
-            if (m_passToImGui && imguiCaptured)
-                return;
-            break;
-        }
-        case sf::Event::Resized:
-        {
-            WindowEvent we{};
-            we.width          = event.size.width;
-            we.height         = event.size.height;
-            inputEvent.type   = InputEventType::WindowResized;
-            inputEvent.window = we;
-            if (m_passToImGui && imguiCaptured)
-                return;
-            break;
-        }
-        default:
-            return;
-    }
-
-    // dispatch function subscribers & pointer listeners
-    for (const auto& kv : m_subscribers)
-    {
-        try
-        {
-            kv.second(inputEvent);
-        }
-        catch (...)
-        {
-        }
-    }
-    for (auto* l : m_listenerPointers)
-    {
-        if (!l)
-            continue;
-        switch (inputEvent.type)
-        {
-            case InputEventType::KeyPressed:
-                l->onKeyPressed(inputEvent.key);
-                break;
-            case InputEventType::KeyReleased:
-                l->onKeyReleased(inputEvent.key);
-                break;
-            case InputEventType::MouseButtonPressed:
-                l->onMousePressed(inputEvent.mouse);
-                break;
-            case InputEventType::MouseButtonReleased:
-                l->onMouseReleased(inputEvent.mouse);
-                break;
-            case InputEventType::MouseMoved:
-                l->onMouseMoved(inputEvent.mouseMove);
-                break;
-            case InputEventType::TextEntered:
-                l->onTextEntered(inputEvent.text);
-                break;
-            case InputEventType::WindowClosed:
-            case InputEventType::WindowResized:
-                l->onWindowEvent(inputEvent.window);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 void SInput::update(float /*deltaTime*/, World& world)
 {
     // Clear transient states (pressed/released) at start of update
@@ -422,10 +243,214 @@ void SInput::update(float /*deltaTime*/, World& world)
     if (!m_window)
         return;
 
-    // Pump events
-    sf::Event event;
-    while (m_window->pollEvent(event))
-        processEvent(event);
+    auto forwardToImGuiAndCheckCapture = [&](const auto& subEvent) -> bool
+    {
+        if (!m_passToImGui)
+        {
+            return false;
+        }
+
+        sf::Event event{subEvent};
+        ImGui::SFML::ProcessEvent(*m_window, event);
+        return ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
+    };
+
+    auto dispatch = [&](const InputEvent& inputEvent)
+    {
+        for (const auto& kv : m_subscribers)
+        {
+            try
+            {
+                kv.second(inputEvent);
+            }
+            catch (...)
+            {
+            }
+        }
+
+        for (auto* l : m_listenerPointers)
+        {
+            if (!l)
+                continue;
+            switch (inputEvent.type)
+            {
+                case InputEventType::KeyPressed:
+                    l->onKeyPressed(inputEvent.key);
+                    break;
+                case InputEventType::KeyReleased:
+                    l->onKeyReleased(inputEvent.key);
+                    break;
+                case InputEventType::MouseButtonPressed:
+                    l->onMousePressed(inputEvent.mouse);
+                    break;
+                case InputEventType::MouseButtonReleased:
+                    l->onMouseReleased(inputEvent.mouse);
+                    break;
+                case InputEventType::MouseMoved:
+                    l->onMouseMoved(inputEvent.mouseMove);
+                    break;
+                case InputEventType::TextEntered:
+                    l->onTextEntered(inputEvent.text);
+                    break;
+                case InputEventType::WindowClosed:
+                case InputEventType::WindowResized:
+                    l->onWindowEvent(inputEvent.window);
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    // Pump events (SFML 3 typed handlers)
+    m_window->handleEvents(
+        [&](const sf::Event::Closed& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            inputEvent.type   = InputEventType::WindowClosed;
+            inputEvent.window = WindowEvent{};
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::Resized& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            WindowEvent we{};
+            we.width          = e.size.x;
+            we.height         = e.size.y;
+            inputEvent.type   = InputEventType::WindowResized;
+            inputEvent.window = we;
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::KeyPressed& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            KeyEvent ke{};
+            ke.key          = keyCodeFromSFML(e.scancode);
+            ke.alt          = e.alt;
+            ke.ctrl         = e.control;
+            ke.shift        = e.shift;
+            ke.system       = e.system;
+            const auto wasDownIt = m_keyDown.find(ke.key);
+            const bool wasDown   = (wasDownIt != m_keyDown.end()) ? wasDownIt->second : false;
+            ke.repeat            = wasDown;
+            inputEvent.type = InputEventType::KeyPressed;
+            inputEvent.key  = ke;
+
+            m_keyDown[ke.key] = true;
+            if (ke.repeat)
+            {
+                m_keyRepeat[ke.key] = true;
+            }
+            else
+            {
+                m_keyPressed[ke.key] = true;
+            }
+
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::KeyReleased& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            KeyEvent ke{};
+            ke.key          = keyCodeFromSFML(e.scancode);
+            ke.alt          = e.alt;
+            ke.ctrl         = e.control;
+            ke.shift        = e.shift;
+            ke.system       = e.system;
+            ke.repeat       = false;
+            inputEvent.type = InputEventType::KeyReleased;
+            inputEvent.key  = ke;
+
+            m_keyDown[ke.key]     = false;
+            m_keyReleased[ke.key] = true;
+            m_keyRepeat.erase(ke.key);
+
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::MouseMoved& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            MouseMoveEvent mm{};
+            mm.position          = Vec2i{e.position.x, e.position.y};
+            inputEvent.type      = InputEventType::MouseMoved;
+            inputEvent.mouseMove = mm;
+            m_mousePosition      = mm.position;
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::MouseButtonPressed& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            MouseEvent me{};
+            me.button        = mouseButtonFromSFML(e.button);
+            me.position      = Vec2i{e.position.x, e.position.y};
+            inputEvent.type  = InputEventType::MouseButtonPressed;
+            inputEvent.mouse = me;
+
+            m_mouseDown[me.button]    = true;
+            m_mousePressed[me.button] = true;
+            m_mousePosition           = me.position;
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::MouseButtonReleased& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            MouseEvent me{};
+            me.button        = mouseButtonFromSFML(e.button);
+            me.position      = Vec2i{e.position.x, e.position.y};
+            inputEvent.type  = InputEventType::MouseButtonReleased;
+            inputEvent.mouse = me;
+
+            m_mouseDown[me.button]     = false;
+            m_mouseReleased[me.button] = true;
+            m_mousePosition            = me.position;
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::MouseWheelScrolled& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            WheelEvent we{};
+            we.delta         = e.delta;
+            we.position      = Vec2i{e.position.x, e.position.y};
+            inputEvent.type  = InputEventType::MouseWheel;
+            inputEvent.wheel = we;
+            dispatch(inputEvent);
+        },
+        [&](const sf::Event::TextEntered& e)
+        {
+            if (forwardToImGuiAndCheckCapture(e))
+                return;
+
+            InputEvent inputEvent{};
+            TextEvent te{};
+            te.unicode      = e.unicode;
+            inputEvent.type = InputEventType::TextEntered;
+            inputEvent.text = te;
+            dispatch(inputEvent);
+        });
 
     // Ensure controller bindings are registered before evaluating action states
     registerControllerBindings(world);

@@ -38,9 +38,10 @@ bool SRenderer::initialize(const WindowConfig& config)
     }
 
     // Create the window
-    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(config.width, config.height),
+    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(sf::Vector2u{config.width, config.height}),
                                                   config.title,
                                                   config.getStyleFlags(),
+                                                  config.getState(),
                                                   config.getContextSettings());
 
     // Check if window was created and is open
@@ -275,11 +276,11 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
     }
     else if (!vertexPath.empty())
     {
-        loaded = shader->loadFromFile(vertexPath, sf::Shader::Vertex);
+        loaded = shader->loadFromFile(vertexPath, sf::Shader::Type::Vertex);
     }
     else
     {
-        loaded = shader->loadFromFile(fragmentPath, sf::Shader::Fragment);
+        loaded = shader->loadFromFile(fragmentPath, sf::Shader::Type::Fragment);
     }
 
     if (!loaded)
@@ -417,18 +418,18 @@ void SRenderer::renderEntity(Entity entity, World& world)
                 float halfWidth  = collider->getBoxHalfWidth();
                 float halfHeight = collider->getBoxHalfHeight();
                 rect.setSize(sf::Vector2f(halfWidth * 2.0f, halfHeight * 2.0f));
-                rect.setOrigin(halfWidth, halfHeight);
+                rect.setOrigin(sf::Vector2f{halfWidth, halfHeight});
             }
             else
             {
                 // Default rectangle size (pixels converted to meters)
                 constexpr float kDefaultSizeM = 50.0f / kPixelsPerMeter;
                 rect.setSize(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
-                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
+                rect.setOrigin(sf::Vector2f{(kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y});
             }
 
-            rect.setPosition(pos.x, pos.y);
-            rect.setRotation(rotationDegrees);
+            rect.setPosition(sf::Vector2f{pos.x, pos.y});
+            rect.setRotation(sf::degrees(rotationDegrees));
             rect.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -458,10 +459,10 @@ void SRenderer::renderEntity(Entity entity, World& world)
             }
 
             circle.setRadius(radius);
-            circle.setOrigin(radius, radius);
-            circle.setPosition(pos.x, pos.y);
-            circle.setScale(scale.x, scale.y);
-            circle.setRotation(rotationDegrees);
+            circle.setOrigin(sf::Vector2f{radius, radius});
+            circle.setPosition(sf::Vector2f{pos.x, pos.y});
+            circle.setScale(sf::Vector2f{scale.x, scale.y});
+            circle.setRotation(sf::degrees(rotationDegrees));
             circle.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -546,8 +547,8 @@ void SRenderer::renderEntity(Entity entity, World& world)
                     const float worldWidth  = maxX - minX;
                     const float worldHeight = maxY - minY;
 
-                    const float texWidthPx  = std::max(1.0f, bounds.width);
-                    const float texHeightPx = std::max(1.0f, bounds.height);
+                    const float texWidthPx  = std::max(1.0f, bounds.size.x);
+                    const float texHeightPx = std::max(1.0f, bounds.size.y);
 
                     if (std::isfinite(worldWidth) && std::isfinite(worldHeight) && worldWidth > 0.0f && worldHeight > 0.0f)
                     {
@@ -556,31 +557,33 @@ void SRenderer::renderEntity(Entity entity, World& world)
                         const float targetWorld  = std::max(worldWidth, worldHeight);
                         const float spriteSizePx = std::max(1.0f, std::min(texWidthPx, texHeightPx));
                         const float uniformScale = targetWorld / spriteSizePx;
-                        sprite.setScale(uniformScale * scale.x, uniformScale * scale.y);
+                        sprite.setScale(sf::Vector2f{uniformScale * scale.x, uniformScale * scale.y});
 
                         // Map the body origin (0,0) into the collider bounds and use that as the sprite origin.
-                        const float originXPx = bounds.left + ((0.0f - minX) / worldWidth) * texWidthPx;
-                        const float originYPx = bounds.top + ((0.0f - minY) / worldHeight) * texHeightPx;
-                        sprite.setOrigin(originXPx, originYPx);
+                        const float originXPx = bounds.position.x + ((0.0f - minX) / worldWidth) * texWidthPx;
+                        const float originYPx = bounds.position.y + ((0.0f - minY) / worldHeight) * texHeightPx;
+                        sprite.setOrigin(sf::Vector2f{originXPx, originYPx});
                     }
                     else
                     {
                         const float baseScale = 1.0f / kPixelsPerMeter;
-                        sprite.setScale(baseScale * scale.x, baseScale * scale.y);
-                        sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
+                        sprite.setScale(sf::Vector2f{baseScale * scale.x, baseScale * scale.y});
+                        sprite.setOrigin(sf::Vector2f{bounds.position.x + bounds.size.x / 2.0f,
+                                                      bounds.position.y + bounds.size.y / 2.0f});
                     }
                 }
                 else
                 {
                     const float baseScale = 1.0f / kPixelsPerMeter;
-                    sprite.setScale(baseScale * scale.x, baseScale * scale.y);
-                    sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
+                    sprite.setScale(sf::Vector2f{baseScale * scale.x, baseScale * scale.y});
+                    sprite.setOrigin(sf::Vector2f{bounds.position.x + bounds.size.x / 2.0f,
+                                                  bounds.position.y + bounds.size.y / 2.0f});
                 }
 
-                sprite.setPosition(pos.x, pos.y);
+                sprite.setPosition(sf::Vector2f{pos.x, pos.y});
                 // Convention: +Y is forward at 0 radians. Most existing Example textures were authored
                 // "forward" pointing down (screen-space), so apply a 180° flip at render time.
-                sprite.setRotation(rotationDegrees + 180.0f);
+                sprite.setRotation(sf::degrees(rotationDegrees + 180.0f));
                 sprite.setColor(toSFMLColor(finalColor));
 
                 m_window->draw(sprite, states);
@@ -590,9 +593,9 @@ void SRenderer::renderEntity(Entity entity, World& world)
                 // Fallback: draw a rectangle if no texture
                 constexpr float    kDefaultSizeM = 50.0f / kPixelsPerMeter;
                 sf::RectangleShape rect(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
-                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
-                rect.setPosition(pos.x, pos.y);
-                rect.setRotation(rotationDegrees);
+                rect.setOrigin(sf::Vector2f{(kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y});
+                rect.setPosition(sf::Vector2f{pos.x, pos.y});
+                rect.setRotation(sf::degrees(rotationDegrees));
                 rect.setFillColor(toSFMLColor(finalColor));
                 m_window->draw(rect, states);
             }
@@ -629,7 +632,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
             // Create line using VertexArray
             float           thickness = renderable->getLineThickness();
             sf::Color       lineColor = toSFMLColor(finalColor);
-            sf::VertexArray line(sf::Lines, 2);
+            sf::VertexArray line(sf::PrimitiveType::Lines, 2);
             line[0].position = worldStart;
             line[0].color    = lineColor;
             line[1].position = worldEnd;
@@ -653,7 +656,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
                     int halfThickness = static_cast<int>(thickness / 2.0f);
                     for (int offset = -halfThickness; offset <= halfThickness; ++offset)
                     {
-                        sf::VertexArray thickLine(sf::Lines, 2);
+                        sf::VertexArray thickLine(sf::PrimitiveType::Lines, 2);
                         thickLine[0].position = worldStart + perpendicular * static_cast<float>(offset);
                         thickLine[0].color    = lineColor;
                         thickLine[1].position = worldEnd + perpendicular * static_cast<float>(offset);

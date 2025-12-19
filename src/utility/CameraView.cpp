@@ -34,7 +34,7 @@ sf::View buildViewFromCamera(const Components::CCamera& camera, const sf::Vector
 {
     sf::View view;
 
-    view.setCenter(camera.position.x, camera.position.y);
+    view.setCenter(sf::Vector2f{camera.position.x, camera.position.y});
 
     const float zoom        = safePositiveOr(camera.zoom, 1.0f);
     const float worldHeight = camera.worldHeight / zoom;
@@ -43,14 +43,15 @@ sf::View buildViewFromCamera(const Components::CCamera& camera, const sf::Vector
     const float worldWidth = worldHeight * aspect;
 
     // Y-up mapping: flip Y by negating the view height.
-    view.setSize(worldWidth, -worldHeight);
+    view.setSize(sf::Vector2f{worldWidth, -worldHeight});
 
     // SFML uses degrees clockwise (Y-down); with our mapping we currently apply the plan's
     // recommended sign to match expected camera rotation.
     const float degrees = -(camera.rotationRadians * (180.0f / kPi));
-    view.setRotation(degrees);
+    view.setRotation(sf::degrees(degrees));
 
-    view.setViewport(sf::FloatRect(camera.viewport.left, camera.viewport.top, camera.viewport.width, camera.viewport.height));
+    view.setViewport(sf::FloatRect(sf::Vector2f{camera.viewport.left, camera.viewport.top},
+                                   sf::Vector2f{camera.viewport.width, camera.viewport.height}));
 
     return view;
 }

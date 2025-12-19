@@ -1,5 +1,6 @@
 #include "SParticle.h"
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <random>
 #include "CParticleEmitter.h"
@@ -442,7 +443,7 @@ static void emitParticle(::Components::CParticleEmitter* emitter, const Vec2& wo
     emitter->getParticles().push_back(spawnParticle(emitter, worldPosition, entityRotation));
 }
 
-SParticle::SParticle() : m_vertexArray(sf::Quads), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false) {}
+SParticle::SParticle() : m_vertexArray(sf::PrimitiveType::Triangles), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false) {}
 
 SParticle::~SParticle()
 {
@@ -551,7 +552,9 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         float        halfSizeWorld = particle.size;
 
         // Create color with alpha
-        sf::Color color(particle.color.r, particle.color.g, particle.color.b, static_cast<sf::Uint8>(particle.alpha * 255.0f));
+        const float clampedAlpha = std::clamp(particle.alpha, 0.0f, 1.0f);
+        const auto  alphaByte    = static_cast<std::uint8_t>(clampedAlpha * 255.0f);
+        sf::Color   color(particle.color.r, particle.color.g, particle.color.b, alphaByte);
 
         if (texture)
         {
@@ -586,11 +589,22 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
                 sf::Vector2f(0.0f, static_cast<float>(texSize.y))                            // Bottom-left
             };
 
-            // Add vertices
-            for (int i = 0; i < 4; ++i)
+            auto appendTextured = [&](int idx)
             {
-                m_vertexArray.append(sf::Vertex(corners[i], color, texCoords[i]));
-            }
+                sf::Vertex v;
+                v.position  = corners[idx];
+                v.color     = color;
+                v.texCoords = texCoords[idx];
+                m_vertexArray.append(v);
+            };
+
+            // Two triangles: (0,1,2) and (0,2,3)
+            appendTextured(0);
+            appendTextured(1);
+            appendTextured(2);
+            appendTextured(0);
+            appendTextured(2);
+            appendTextured(3);
         }
         else
         {
@@ -612,10 +626,21 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
                 corners[i] += worldPos;
             }
 
-            for (int i = 0; i < 4; ++i)
+            auto appendColored = [&](int idx)
             {
-                m_vertexArray.append(sf::Vertex(corners[i], color));
-            }
+                sf::Vertex v;
+                v.position = corners[idx];
+                v.color    = color;
+                m_vertexArray.append(v);
+            };
+
+            // Two triangles: (0,1,2) and (0,2,3)
+            appendColored(0);
+            appendColored(1);
+            appendColored(2);
+            appendColored(0);
+            appendColored(2);
+            appendColored(3);
         }
     }
 

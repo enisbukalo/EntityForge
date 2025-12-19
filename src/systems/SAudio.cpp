@@ -46,6 +46,7 @@ bool SAudio::initialize()
         slot.inUse      = false;
         slot.owner      = Entity::null();
         slot.baseVolume = 1.0f;
+        slot.sound.reset();
     }
 
 #ifndef _WIN32
@@ -77,10 +78,14 @@ void SAudio::shutdownInternal()
     {
         if (slot.inUse)
         {
-            slot.sound.stop();
+            if (slot.sound)
+            {
+                slot.sound->stop();
+            }
         }
         slot.inUse = false;
         slot.owner = Entity::null();
+        slot.sound.reset();
     }
 
     if (m_currentMusic)
@@ -157,12 +162,13 @@ void SAudio::unloadSound(const std::string& id)
     {
         for (auto& slot : m_soundPool)
         {
-            if (slot.inUse && slot.sound.getBuffer() == &bufferIt->second)
+            if (slot.inUse && slot.sound && (&slot.sound->getBuffer() == &bufferIt->second))
             {
-                slot.sound.stop();
+                slot.sound->stop();
                 m_entityToSlot.erase(slot.owner);
                 slot.inUse = false;
                 slot.owner = Entity::null();
+                slot.sound.reset();
             }
         }
         m_soundBuffers.erase(bufferIt);
@@ -204,11 +210,11 @@ bool SAudio::playSfx(Entity entity, const std::string& id, bool loop, float volu
     }
 
     auto& slot = m_soundPool[slotIndex];
-    slot.sound.setBuffer(bufferIt->second);
+    slot.sound.emplace(bufferIt->second);
     slot.baseVolume = std::clamp(volume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
-    slot.sound.setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
-    slot.sound.setLoop(loop);
-    slot.sound.play();
+    slot.sound->setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
+    slot.sound->setLooping(loop);
+    slot.sound->play();
     slot.inUse = true;
     slot.owner = entity;
 
@@ -230,10 +236,14 @@ void SAudio::stopSfx(Entity entity)
         auto& slot = m_soundPool[index];
         if (slot.inUse)
         {
-            slot.sound.stop();
+            if (slot.sound)
+            {
+                slot.sound->stop();
+            }
         }
         slot.inUse = false;
         slot.owner = Entity::null();
+        slot.sound.reset();
     }
 
     m_entityToSlot.erase(it);
@@ -260,7 +270,10 @@ void SAudio::setSfxVolume(Entity entity, float volume)
     }
 
     slot.baseVolume = std::clamp(volume, AudioConstants::MIN_VOLUME, AudioConstants::MAX_VOLUME);
-    slot.sound.setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
+    if (slot.sound)
+    {
+        slot.sound->setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
+    }
 }
 
 bool SAudio::playMusic(const std::string& id, bool loop)
@@ -313,7 +326,7 @@ bool SAudio::playMusic(const std::string& id, bool loop)
     }
 
     m_currentMusicBaseVolume = 1.0f;
-    m_currentMusic->setLoop(loop);
+    m_currentMusic->setLooping(loop);
     m_currentMusic->setVolume(calculateEffectiveMusicVolume(m_currentMusicBaseVolume) * 100.0f);
     m_currentMusic->play();
     m_currentMusicId = id;
@@ -332,7 +345,7 @@ void SAudio::stopMusic()
 
 void SAudio::pauseMusic()
 {
-    if (m_currentMusic && m_currentMusic->getStatus() == sf::Music::Playing)
+    if (m_currentMusic && m_currentMusic->getStatus() == sf::SoundSource::Status::Playing)
     {
         m_currentMusic->pause();
     }
@@ -340,7 +353,7 @@ void SAudio::pauseMusic()
 
 void SAudio::resumeMusic()
 {
-    if (m_currentMusic && m_currentMusic->getStatus() == sf::Music::Paused)
+    if (m_currentMusic && m_currentMusic->getStatus() == sf::SoundSource::Status::Paused)
     {
         m_currentMusic->play();
     }
@@ -348,7 +361,7 @@ void SAudio::resumeMusic()
 
 bool SAudio::isMusicPlaying() const
 {
-    return m_currentMusic && m_currentMusic->getStatus() == sf::Music::Playing;
+    return m_currentMusic && m_currentMusic->getStatus() == sf::SoundSource::Status::Playing;
 }
 
 void SAudio::setMasterVolume(float volume)
@@ -359,7 +372,10 @@ void SAudio::setMasterVolume(float volume)
     {
         if (slot.inUse)
         {
-            slot.sound.setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
+            if (slot.sound)
+            {
+                slot.sound->setVolume(calculateEffectiveSfxVolume(slot.baseVolume) * 100.0f);
+            }
         }
     }
 
@@ -405,11 +421,12 @@ void SAudio::update(float deltaTime)
             continue;
         }
 
-        if (slot.sound.getStatus() == sf::Sound::Stopped)
+        if (!slot.sound || slot.sound->getStatus() == sf::SoundSource::Status::Stopped)
         {
             m_entityToSlot.erase(slot.owner);
             slot.inUse = false;
             slot.owner = Entity::null();
+            slot.sound.reset();
         }
     }
 }

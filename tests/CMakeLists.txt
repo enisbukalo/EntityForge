@@ -40,10 +40,10 @@ target_link_libraries(unit_tests PRIVATE
     GameEngine
     GTest::gtest
     GTest::gtest_main
-    sfml-graphics
-    sfml-window
-    sfml-system
-    sfml-audio
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
     ImGui-SFML
 )
 
@@ -72,27 +72,14 @@ target_include_directories(unit_tests PRIVATE
     $<TARGET_PROPERTY:spdlog::spdlog,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-# Copy required DLLs to the test executable directory on Windows
-if(WIN32)
+# Copy required DLLs to the test executable directory on Windows.
+# Prefer target-based dependency discovery for native Windows builds.
+if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
     add_custom_command(TARGET unit_tests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:GameEngine>
+            $<TARGET_RUNTIME_DLLS:unit_tests>
             $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-system>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-window>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-graphics>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-audio>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:ImGui-SFML>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMENT "Copying DLLs to test executable directory"
+        COMMAND_EXPAND_LISTS
+        COMMENT "Copying runtime DLLs to test executable directory"
     )
 endif()
