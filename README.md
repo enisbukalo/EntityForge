@@ -39,12 +39,16 @@ Prereqs:
 - Docker Compose
 
 Commands:
-- Linux build (with tests): `docker-compose exec dev ./build_tools/build.sh --linux`
-- Linux build (no tests): `docker-compose exec dev ./build_tools/build.sh --linux --no-tests`
-- Clean build (Linux): `docker-compose exec dev ./build_tools/build.sh --linux --clean`
-- Windows cross-compilation: `docker-compose exec dev ./build_tools/build.sh --windows`
-- Build both: `docker-compose exec dev ./build_tools/build.sh --all`
-- Enter dev container: `docker-compose exec dev /bin/bash`
+- Build the dev image: `docker compose up -d --build`
+
+Convenience commands (available inside the container):
+- Linux build (with tests): `docker compose run --rm dev linux-build-test`
+- Linux build (with coverage): `docker compose run --rm dev linux-coverage`
+- Windows cross-compilation/package: `docker compose run --rm dev windows-package`
+- Format + static analysis: `docker compose run --rm dev format-and-analysis`
+
+Notes:
+- The dev image is a **toolchain** image; your repo is mounted at `/app` via Docker Compose.
 
 ### Build options
 

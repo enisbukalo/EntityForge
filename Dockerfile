@@ -4,8 +4,10 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install essential build tools and dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     build-essential \
+    cmake \
     git \
     clang \
     clang-format \
@@ -26,23 +28,17 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     gcc-mingw-w64-x86-64 \
     g++-mingw-w64-x86-64 \
-    wine \
-    wine64 \
     libssl-dev \
     dos2unix \
     cppcheck \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
-# Install CMake 3.28+ from official source
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.0/cmake-3.28.0-linux-x86_64.sh && \
-    chmod +x cmake-3.28.0-linux-x86_64.sh && \
-    ./cmake-3.28.0-linux-x86_64.sh --skip-license --prefix=/usr/local && \
-    rm cmake-3.28.0-linux-x86_64.sh
 
 # Install SFML 3.0.2 for Linux (so find_package(SFML 3.0.2 ...) succeeds)
 RUN wget -O /tmp/sfml.tar.gz https://www.sfml-dev.org/files/SFML-3.0.2-linux-gcc-64-bit.tar.gz && \
     tar -xzf /tmp/sfml.tar.gz -C /tmp && \
-    cp -r /tmp/SFML-3.0.2/* /usr/local/ && \
+    cp -r /tmp/SFML-3.0.2/include /usr/local/ && \
+    cp -r /tmp/SFML-3.0.2/lib /usr/local/ && \
     rm -rf /tmp/SFML-3.0.2 /tmp/sfml.tar.gz && \
     ldconfig
 
@@ -56,6 +52,7 @@ RUN mkdir -p /opt/sfml-windows && \
     wget -O /tmp/sfml-src.zip https://www.sfml-dev.org/files/SFML-3.0.2-sources.zip && \
     unzip /tmp/sfml-src.zip -d /tmp && \
     cmake -S /tmp/SFML-3.0.2 -B /tmp/sfml-build-windows -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_SYSTEM_NAME=Windows \
         -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
         -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
@@ -75,40 +72,41 @@ RUN mkdir -p /opt/sfml-windows && \
 ENV SFML_WINDOWS_ROOT=/opt/sfml-windows/sfml
 ENV MINGW_PREFIX=x86_64-w64-mingw32
 
-# Copy project files
-COPY . .
-
-# Create build directory
-RUN mkdir -p build
-
-# Create script for building and testing
-RUN echo '#!/bin/bash\n\
-    cd build\n\
-    cmake .. -GNinja\n\
-    ninja\n\
-    ./bin/unit_tests\n\
-    ' > /usr/local/bin/build-and-test && \
-    chmod +x /usr/local/bin/build-and-test
-
-# Create script for formatting
-RUN echo '#!/bin/bash\n\
-    find . -type f \( -name "*.cpp" -o -name "*.h" \) \
-    -not -path "./build/*" \
-    -not -path "./deps_cache/*" \
-    -exec clang-format -i -style=file {} +\n\
-    ' > /usr/local/bin/format-code && \
-    chmod +x /usr/local/bin/format-code
-
-# Create script for Windows cross-compilation
-RUN echo '#!/bin/bash\n\
-    mkdir -p build-windows\n\
-    cd build-windows\n\
-    cmake .. -GNinja \\\n\
-        -DCMAKE_TOOLCHAIN_FILE=/app/cmake/toolchain-mingw64.cmake \\\n\
-        -DCMAKE_BUILD_TYPE=Release\n\
-    ninja\n\
-    ' > /usr/local/bin/build-windows && \
-    chmod +x /usr/local/bin/build-windows
+# Convenience wrappers (expect the repo to be mounted at /app)
+RUN set -eux; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/build.sh --linux' \
+        > /usr/local/bin/linux-build-test; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/build.sh --linux --coverage' \
+        > /usr/local/bin/linux-coverage; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/build.sh --windows' \
+        > /usr/local/bin/windows-package; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/format_and_analysis.sh' \
+        > /usr/local/bin/format-and-analysis; \
+    chmod +x \
+        /usr/local/bin/linux-build-test \
+        /usr/local/bin/linux-coverage \
+        /usr/local/bin/windows-package \
+        /usr/local/bin/format-and-analysis
 
 # Default command
 CMD ["/bin/bash"] 

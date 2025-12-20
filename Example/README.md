@@ -5,14 +5,14 @@ This is a small example game that consumes the installed `GameEngine` package.
 ## Building (recommended: via the dev container)
 
 ### Prerequisites
-- The project dev container is available via `docker-compose`
+- The project dev container is available via `docker compose`
 
 ### Build the engine package (Windows cross-compile)
 
 From the repo root:
 
 ```bash
-docker-compose exec dev ./build_tools/build.sh --windows --type Debug
+docker compose run --rm dev windows-package
 ```
 
 This produces a packaged install at `package_windows/` used by the example.
@@ -22,13 +22,13 @@ This produces a packaged install at `package_windows/` used by the example.
 From the repo root:
 
 ```bash
-docker-compose exec dev ./Example/build.sh --type Debug
+docker compose run --rm dev ./Example/build.sh --type Debug
 ```
 
 Use `--clean` if you want a full rebuild:
 
 ```bash
-docker-compose exec dev ./Example/build.sh --clean
+docker compose run --rm dev ./Example/build.sh --clean
 ```
 
 ## Output
