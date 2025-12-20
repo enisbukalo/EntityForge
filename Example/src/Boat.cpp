@@ -57,18 +57,18 @@ Entity spawnBoat(World& world)
     world.components().add<Components::CRenderable>(boat, Components::VisualType::Sprite, Color::White, 10, true);
     world.components().add<Components::CMaterial>(boat, Color::White, Components::BlendMode::Alpha, 1.0f);
 
-    auto* body           = world.components().add<Components::CPhysicsBody2D>(boat);
-    body->bodyType       = Components::BodyType::Dynamic;
-    body->fixedRotation  = false;
-    body->linearDamping  = kBoatLinearDamping;
-    body->angularDamping = kBoatAngularDamping;
-    body->gravityScale   = kBoatGravityScale;
+    Components::CPhysicsBody2D* body = world.components().add<Components::CPhysicsBody2D>(boat);
+    body->bodyType                   = Components::BodyType::Dynamic;
+    body->fixedRotation              = false;
+    body->linearDamping              = kBoatLinearDamping;
+    body->angularDamping             = kBoatAngularDamping;
+    body->gravityScale               = kBoatGravityScale;
 
-    auto* collider        = world.components().add<Components::CCollider2D>(boat);
-    collider->sensor      = false;
-    collider->density     = kBoatColliderDensity;
-    collider->friction    = kBoatColliderFriction;
-    collider->restitution = kBoatColliderRestitution;
+    Components::CCollider2D* collider = world.components().add<Components::CCollider2D>(boat);
+    collider->sensor                  = false;
+    collider->density                 = kBoatColliderDensity;
+    collider->friction                = kBoatColliderFriction;
+    collider->restitution             = kBoatColliderRestitution;
     if (!kBoatHullFixtures.empty())
     {
         collider->createPolygon(kBoatHullFixtures.front(), 0.02f);
@@ -80,7 +80,7 @@ Entity spawnBoat(World& world)
 
     world.components().add<Components::CInputController>(boat);
 
-    auto* script = world.components().add<Components::CNativeScript>(boat);
+    Components::CNativeScript* script = world.components().add<Components::CNativeScript>(boat);
     script->bind<Example::Boat>();
 
     return boat;
@@ -188,7 +188,7 @@ Components::CParticleEmitter makeHullSprayEmitter()
 
 void Boat::onCreate(Entity self, World& world)
 {
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         input = world.components().add<Components::CInputController>(self);
@@ -205,13 +205,13 @@ void Boat::onCreate(Entity self, World& world)
 
 void Boat::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         return;
     }
 
-    auto& audio = Systems::SystemLocator::audio();
+    Systems::SAudio& audio = Systems::SystemLocator::audio();
 
     const bool forward  = input->isActionActive("MoveForward");
     const bool backward = input->isActionActive("MoveBackward");
@@ -238,7 +238,7 @@ void Boat::onUpdate(float /*deltaTime*/, Entity self, World& world)
 
     if (m_hullSpray.isValid())
     {
-        auto* emitter = world.components().tryGet<Components::CParticleEmitter>(m_hullSpray);
+        Components::CParticleEmitter* emitter = world.components().tryGet<Components::CParticleEmitter>(m_hullSpray);
         if (emitter)
         {
             const float MIN_SPEED_FOR_SPRAY = 0.05f;
@@ -265,9 +265,9 @@ void Boat::onUpdate(float /*deltaTime*/, Entity self, World& world)
 
 void Boat::setupParticles(Entity self, World& world)
 {
-    auto*       boatTransform = world.components().tryGet<Components::CTransform>(self);
-    const Vec2  pos           = boatTransform ? boatTransform->getPosition() : Vec2{0.0f, 0.0f};
-    const float rotation      = boatTransform ? boatTransform->getRotation() : 0.0f;
+    Components::CTransform* boatTransform = world.components().tryGet<Components::CTransform>(self);
+    const Vec2              pos           = boatTransform ? boatTransform->getPosition() : Vec2{0.0f, 0.0f};
+    const float             rotation      = boatTransform ? boatTransform->getRotation() : 0.0f;
 
     // Spawn separate entities for each emitter (only one CParticleEmitter per entity type).
     if (!m_bubbleTrail.isValid())
@@ -295,20 +295,20 @@ void Boat::setupParticles(Entity self, World& world)
 
 void Boat::setupFixedMovement(Entity self, World& world)
 {
-    World* worldPtr = &world;
-    auto&  physics  = Systems::SystemLocator::physics();
+    World*               worldPtr      = &world;
+    Systems::S2DPhysics* physicsSystem = &Systems::SystemLocator::physics();
 
-    physics.setFixedUpdateCallback(
+    physicsSystem->setFixedUpdateCallback(
         self,
-        [this, self, worldPtr](float /*timeStep*/)
+        [this, self, worldPtr, physicsSystem](float /*timeStep*/)
         {
             if (!worldPtr)
             {
                 return;
             }
 
-            auto  components = worldPtr->components();
-            auto* input      = components.tryGet<Components::CInputController>(self);
+            auto                          components = worldPtr->components();
+            Components::CInputController* input      = components.tryGet<Components::CInputController>(self);
             if (!input)
             {
                 return;
@@ -319,33 +319,33 @@ void Boat::setupFixedMovement(Entity self, World& world)
             const bool left     = input->isActionActive("RotateLeft");
             const bool right    = input->isActionActive("RotateRight");
 
-            auto& physics = Systems::SystemLocator::physics();
+            Systems::SAudio& audio = Systems::SystemLocator::audio();
 
             // --- Thrust (frame-rate independent; runs at fixed 60Hz) ---
             if (forward)
             {
-                const b2Vec2 f = physics.getForwardVector(self);
-                physics.applyForceToCenter(self, b2Vec2{f.x * kPlayerForce, f.y * kPlayerForce});
+                const b2Vec2 f = physicsSystem->getForwardVector(self);
+                physicsSystem->applyForceToCenter(self, b2Vec2{f.x * kPlayerForce, f.y * kPlayerForce});
             }
             else if (backward)
             {
-                const b2Vec2 f = physics.getForwardVector(self);
-                physics.applyForceToCenter(self, b2Vec2{-f.x * (kPlayerForce * 0.5f), -f.y * (kPlayerForce * 0.5f)});
+                const b2Vec2 f = physicsSystem->getForwardVector(self);
+                physicsSystem->applyForceToCenter(self, b2Vec2{-f.x * (kPlayerForce * 0.5f), -f.y * (kPlayerForce * 0.5f)});
             }
 
             // --- Rudder steering (matches old behavior: steer only when moving) ---
             if (left || right)
             {
-                const b2Vec2 f   = physics.getForwardVector(self);
-                const b2Vec2 r   = physics.getRightVector(self);
-                const b2Vec2 vel = physics.getLinearVelocity(self);
+                const b2Vec2 f   = physicsSystem->getForwardVector(self);
+                const b2Vec2 r   = physicsSystem->getRightVector(self);
+                const b2Vec2 vel = physicsSystem->getLinearVelocity(self);
 
                 const float forwardVelSigned = (f.x * vel.x) + (f.y * vel.y);
                 const float absForwardVel    = std::fabs(forwardVelSigned);
 
                 if (absForwardVel >= kMinSpeedForSteering)
                 {
-                    const b2Vec2 pos = physics.getPosition(self);
+                    const b2Vec2 pos = physicsSystem->getPosition(self);
                     const b2Vec2 stern{pos.x - f.x * kRudderOffsetMeters, pos.y - f.y * kRudderOffsetMeters};
 
                     const float speedEffective = std::max(0.0f, absForwardVel - kMinSpeedForSteering);
@@ -365,12 +365,12 @@ void Boat::setupFixedMovement(Entity self, World& world)
                         lateral = (forwardVelSigned >= 0.0f) ? b2Vec2{-r.x, -r.y} : r;
                     }
 
-                    physics.applyForce(self, b2Vec2{lateral.x * forceMag, lateral.y * forceMag}, stern);
+                    physicsSystem->applyForce(self, b2Vec2{lateral.x * forceMag, lateral.y * forceMag}, stern);
                 }
             }
 
             // --- Keep particle emitters pinned to the boat transform ---
-            auto* boatT = components.tryGet<Components::CTransform>(self);
+            Components::CTransform* boatT = components.tryGet<Components::CTransform>(self);
             if (!boatT)
             {
                 return;
@@ -378,7 +378,7 @@ void Boat::setupFixedMovement(Entity self, World& world)
 
             if (m_bubbleTrail.isValid())
             {
-                if (auto* t = components.tryGet<Components::CTransform>(m_bubbleTrail))
+                if (Components::CTransform* t = components.tryGet<Components::CTransform>(m_bubbleTrail))
                 {
                     t->setPosition(boatT->getPosition());
                     t->setRotation(boatT->getRotation());
@@ -386,7 +386,7 @@ void Boat::setupFixedMovement(Entity self, World& world)
             }
             if (m_hullSpray.isValid())
             {
-                if (auto* t = components.tryGet<Components::CTransform>(m_hullSpray))
+                if (Components::CTransform* t = components.tryGet<Components::CTransform>(m_hullSpray))
                 {
                     t->setPosition(boatT->getPosition());
                     t->setRotation(boatT->getRotation());

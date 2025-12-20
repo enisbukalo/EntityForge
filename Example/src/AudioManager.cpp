@@ -15,7 +15,7 @@ namespace Example
 
 void AudioManager::onCreate(Entity self, World& world)
 {
-    auto& audio = Systems::SystemLocator::audio();
+    Systems::SAudio& audio = Systems::SystemLocator::audio();
 
     // Apply persisted (or default) master volume.
     audio.setMasterVolume(m_currentMasterVolume);
@@ -31,7 +31,7 @@ void AudioManager::onCreate(Entity self, World& world)
     audio.setMusicVolume(kMusicVolume);
 
     // Bind input actions for volume control
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         input = world.components().add<Components::CInputController>(self);
@@ -57,7 +57,7 @@ void AudioManager::onCreate(Entity self, World& world)
 
 void AudioManager::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         return;

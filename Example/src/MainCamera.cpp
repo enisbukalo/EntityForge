@@ -8,8 +8,8 @@ namespace Example
 
 Entity spawnMainCamera(World& world, Entity followTarget, float worldHeightMeters)
 {
-    Entity cameraEntity = world.createEntity();
-    auto*  camera       = world.components().add<Components::CCamera>(cameraEntity);
+    Entity               cameraEntity = world.createEntity();
+    Components::CCamera* camera       = world.components().add<Components::CCamera>(cameraEntity);
 
     camera->name        = "Main";
     camera->enabled     = true;

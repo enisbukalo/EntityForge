@@ -69,7 +69,7 @@ void BarrelScript::onCreate(Entity /*self*/, World& /*world*/) {}
 
 void BarrelScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
-    auto* emitter = world.components().tryGet<Components::CParticleEmitter>(self);
+    Components::CParticleEmitter* emitter = world.components().tryGet<Components::CParticleEmitter>(self);
     if (!emitter)
     {
         return;
@@ -107,23 +107,23 @@ Entity spawnBarrel(World& world, const Vec2& position)
     world.components().add<Components::CRenderable>(barrel, Components::VisualType::Sprite, Color::White, kBarrelZIndex, true);
     world.components().add<Components::CMaterial>(barrel, Color::White, Components::BlendMode::Alpha, 1.0f);
 
-    auto* body           = world.components().add<Components::CPhysicsBody2D>(barrel);
-    body->bodyType       = Components::BodyType::Dynamic;
-    body->fixedRotation  = false;
-    body->linearDamping  = kBarrelLinearDamping;
-    body->angularDamping = kBarrelAngularDamping;
-    body->gravityScale   = kBarrelGravityScale;
+    Components::CPhysicsBody2D* body = world.components().add<Components::CPhysicsBody2D>(barrel);
+    body->bodyType                   = Components::BodyType::Dynamic;
+    body->fixedRotation              = false;
+    body->linearDamping              = kBarrelLinearDamping;
+    body->angularDamping             = kBarrelAngularDamping;
+    body->gravityScale               = kBarrelGravityScale;
 
-    auto* collider        = world.components().add<Components::CCollider2D>(barrel);
-    collider->sensor      = false;
-    collider->density     = kBarrelColliderDensity;
-    collider->friction    = kBarrelColliderFriction;
-    collider->restitution = kBarrelColliderRestitution;
+    Components::CCollider2D* collider = world.components().add<Components::CCollider2D>(barrel);
+    collider->sensor                  = false;
+    collider->density                 = kBarrelColliderDensity;
+    collider->friction                = kBarrelColliderFriction;
+    collider->restitution             = kBarrelColliderRestitution;
     collider->createCircle(kBarrelRadius);
 
     world.components().add<Components::CParticleEmitter>(barrel, makeBarrelSprayEmitter());
 
-    auto* script = world.components().add<Components::CNativeScript>(barrel);
+    Components::CNativeScript* script = world.components().add<Components::CNativeScript>(barrel);
     script->bind<BarrelScript>();
 
     return barrel;

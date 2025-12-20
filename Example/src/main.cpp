@@ -46,16 +46,16 @@ static void registerExampleScriptTypes()
 
 static Entity createAudioManager(World& world)
 {
-    Entity audioManager = world.createEntity();
-    auto*  script       = world.components().add<Components::CNativeScript>(audioManager);
+    Entity                     audioManager = world.createEntity();
+    Components::CNativeScript* script       = world.components().add<Components::CNativeScript>(audioManager);
     script->bind<Example::AudioManager>();
     return audioManager;
 }
 
 static Entity createBarrelSpawner(World& world)
 {
-    Entity spawner = world.createEntity();
-    auto*  script  = world.components().add<Components::CNativeScript>(spawner);
+    Entity                     spawner = world.createEntity();
+    Components::CNativeScript* script  = world.components().add<Components::CNativeScript>(spawner);
     script->bind<Example::BarrelSpawner>(-PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
     return spawner;
 }
