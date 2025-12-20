@@ -13,6 +13,10 @@ on:
         type: boolean
         required: false
         default: false
+    secrets:
+      GHCR_PAT:
+        description: "Classic PAT with read:packages (used to pull GHCR job container)"
+        required: true
 
 permissions:
   contents: read
@@ -25,8 +29,8 @@ jobs:
     container:
       image: ghcr.io/enisbukalo/2d-game-engine:latest
       credentials:
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
+        username: enisbukalo
+        password: ${{ secrets.GHCR_PAT }}
 
     steps:
       - uses: actions/checkout@v4

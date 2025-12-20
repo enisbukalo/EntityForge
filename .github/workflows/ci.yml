@@ -17,6 +17,8 @@ jobs:
     with:
       build_type: "Debug"
       upload_package: false
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
   lint:
     runs-on: ubuntu-latest
@@ -27,7 +29,7 @@ jobs:
       image: ghcr.io/enisbukalo/2d-game-engine:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ github.token }}
+        password: ${{ secrets.GHCR_PAT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,8 +58,8 @@ jobs:
     container:
       image: ghcr.io/enisbukalo/2d-game-engine:latest
       credentials:
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
+        username: ${{ secrets.GHCR_UN }}
+        password: ${{ secrets.GHCR_PAT }}
     steps:
       - uses: actions/checkout@v4
 
