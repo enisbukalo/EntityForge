@@ -11,17 +11,23 @@ permissions:
 jobs:
   build-linux:
     uses: ./.github/workflows/build-linux.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       build_type: "Debug"
       upload_package: false
 
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     container:
       image: ghcr.io/enisbukalo/2d-game-engine:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,11 +50,14 @@ jobs:
 
   static-analysis:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     container:
       image: ghcr.io/enisbukalo/2d-game-engine:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
