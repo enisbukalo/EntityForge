@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: ["master"]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-linux:
     uses: ./.github/workflows/build-linux.yml
@@ -13,43 +17,43 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/enisbukalo/2d-game-engine:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang-format
-        run: sudo apt-get install -y clang-format
+      - name: Mark repo as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Check formatting
         run: |
           find . -type f \( -name "*.cpp" -o -name "*.h" \) \
             -not -path "./build/*" \
+            -not -path "./build_*/*" \
             -not -path "./deps_cache/*" \
+            -not -path "./deps_cache_*/*" \
             -not -path "./package/*" \
+            -not -path "./package_*/*" \
             -not -path "./example_project/*" \
             -not -path "./tests/*" \
+            -not -path "./Example/build/*" \
             -exec clang-format -style=file --dry-run --Werror {} +
 
   static-analysis:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/enisbukalo/2d-game-engine:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install cppcheck
-        run: sudo apt-get install -y cppcheck
+      - name: Mark repo as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Run static analysis
-        run: |
-          cppcheck \
-            --enable=all \
-            --error-exitcode=1 \
-            --suppress=missingIncludeSystem \
-            --suppress=unusedFunction \
-            --suppress=noExplicitConstructor \
-            --suppress=unmatchedSuppression \
-            --suppress=missingInclude \
-            --inline-suppr \
-            --std=c++17 \
-            -I include \
-            -I include/components \
-            -I include/systems \
-            src/ include/ include/components/ include/systems/
+        run: ./build_tools/static_analysis.sh
