@@ -1,10 +1,8 @@
 services:
   dev:
     build: .
+    working_dir: /app
     volumes:
       - .:/app
-    environment:
-      - DISPLAY=${DISPLAY}
-    network_mode: "host"
     tty: true
     stdin_open: true

@@ -15,8 +15,8 @@ float computeWorldEpsilonFromPixel(const Components::CCamera& camera, const sf::
     const sf::View view  = Internal::buildViewFromCamera(camera, windowSizePx);
     const auto     vpNdc = view.getViewport();
 
-    const float vpWidthPx  = std::max(1.0f, vpNdc.width * static_cast<float>(windowSizePx.x));
-    const float vpHeightPx = std::max(1.0f, vpNdc.height * static_cast<float>(windowSizePx.y));
+    const float vpWidthPx  = std::max(1.0f, vpNdc.size.x * static_cast<float>(windowSizePx.x));
+    const float vpHeightPx = std::max(1.0f, vpNdc.size.y * static_cast<float>(windowSizePx.y));
 
     const float worldPerPixelX = std::abs(view.getSize().x) / vpWidthPx;
     const float worldPerPixelY = std::abs(view.getSize().y) / vpHeightPx;

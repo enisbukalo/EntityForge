@@ -4,52 +4,18 @@ on:
   pull_request:
     branches: ["master"]
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build-linux:
     uses: ./.github/workflows/build-linux.yml
+    permissions:
+      contents: read
+      packages: read
     with:
       build_type: "Debug"
       upload_package: false
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: sudo apt-get install -y clang-format
-
-      - name: Check formatting
-        run: |
-          find . -type f \( -name "*.cpp" -o -name "*.h" \) \
-            -not -path "./build/*" \
-            -not -path "./deps_cache/*" \
-            -not -path "./package/*" \
-            -not -path "./example_project/*" \
-            -not -path "./tests/*" \
-            -exec clang-format -style=file --dry-run --Werror {} +
-
-  static-analysis:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cppcheck
-        run: sudo apt-get install -y cppcheck
-
-      - name: Run static analysis
-        run: |
-          cppcheck \
-            --enable=all \
-            --error-exitcode=1 \
-            --suppress=missingIncludeSystem \
-            --suppress=unusedFunction \
-            --suppress=noExplicitConstructor \
-            --suppress=unmatchedSuppression \
-            --suppress=missingInclude \
-            --inline-suppr \
-            --std=c++17 \
-            -I include \
-            -I include/components \
-            -I include/systems \
-            src/ include/ include/components/ include/systems/
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}

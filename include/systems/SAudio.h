@@ -3,6 +3,7 @@
 
 #include <SFML/Audio.hpp>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -96,10 +97,10 @@ public:
 private:
     struct SoundSlot
     {
-        sf::Sound sound;
-        Entity    owner      = Entity::null();
-        bool      inUse      = false;
-        float     baseVolume = 1.0f;
+        std::optional<sf::Sound> sound;
+        Entity                   owner      = Entity::null();
+        bool                     inUse      = false;
+        float                    baseVolume = 1.0f;
     };
 
     /**

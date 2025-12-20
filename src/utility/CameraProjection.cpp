@@ -28,10 +28,10 @@ ViewportPx computeViewportPx(const sf::View& view, const sf::Vector2u& windowSiz
     const float windowHeight = static_cast<float>(windowSizePx.y);
 
     ViewportPx viewport;
-    viewport.left   = vp.left * windowWidth;
-    viewport.top    = vp.top * windowHeight;
-    viewport.width  = vp.width * windowWidth;
-    viewport.height = vp.height * windowHeight;
+    viewport.left   = vp.position.x * windowWidth;
+    viewport.top    = vp.position.y * windowHeight;
+    viewport.width  = vp.size.x * windowWidth;
+    viewport.height = vp.size.y * windowHeight;
 
     // Avoid division by zero; keep behavior stable for unit tests that pass (0,0).
     viewport.width  = safePositiveOr(viewport.width, safePositiveOr(windowWidth, 1.0f));
@@ -72,7 +72,7 @@ Vec2 screenToWorld(const Components::CCamera& camera, const sf::Vector2u& window
     const float ndcX = normalizedX * 2.0f - 1.0f;
     const float ndcY = 1.0f - normalizedY * 2.0f;
 
-    sf::Vector2f world = view.getInverseTransform().transformPoint(ndcX, ndcY);
+    sf::Vector2f world = view.getInverseTransform().transformPoint(sf::Vector2f{ndcX, ndcY});
     world              = clampToFinite(world);
 
     return Vec2(world.x, world.y);
@@ -83,7 +83,7 @@ Vec2i worldToScreen(const Components::CCamera& camera, const sf::Vector2u& windo
     const sf::View   view = Internal::buildViewFromCamera(camera, windowSizePx);
     const ViewportPx vp   = computeViewportPx(view, windowSizePx);
 
-    sf::Vector2f ndc = view.getTransform().transformPoint(worldPos.x, worldPos.y);
+    sf::Vector2f ndc = view.getTransform().transformPoint(sf::Vector2f{worldPos.x, worldPos.y});
     ndc              = clampToFinite(ndc);
 
     const float normalizedX = (ndc.x + 1.0f) * 0.5f;

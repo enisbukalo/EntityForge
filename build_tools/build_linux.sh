@@ -16,9 +16,10 @@ INSTALL_PREFIX="./package_linux"
 RUN_COVERAGE=false
 
 generate_coverage_report() {
-    # Coverage is best-effort and only runs when tests are enabled.
+    # Coverage mode must run tests; test failures must fail the build.
     if [ "$RUN_TESTS" != true ]; then
-        return 0
+        echo -e "${RED}Error: --coverage requires tests to be enabled (do not use --no-tests).${NC}"
+        return 1
     fi
 
     if ! command -v lcov &> /dev/null || ! command -v genhtml &> /dev/null; then
@@ -38,10 +39,8 @@ generate_coverage_report() {
     cmake -B "${COVERAGE_BUILD_DIR}" \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DGAMEENGINE_BUILD_SHARED=$BUILD_SHARED \
-        -DCMAKE_C_FLAGS="--coverage" \
-        -DCMAKE_CXX_FLAGS="--coverage" \
-        -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-        -DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+        -DGAMEENGINE_ENABLE_COVERAGE=ON \
+        -DGAMEENGINE_COVERAGE_INSTRUMENT_TESTS=ON \
         -DDEPS_CACHE_DIR="${PWD}/deps_cache_linux_coverage" \
         || { echo -e "${YELLOW}Coverage configuration failed; skipping coverage.${NC}"; return 0; }
 
@@ -68,22 +67,32 @@ generate_coverage_report() {
 
     echo -e "${GREEN}Running tests (coverage build)...${NC}"
     "${TEST_EXEC}" --gtest_output="xml:${COVERAGE_BUILD_DIR}/test_results.xml" \
-        || { echo -e "${YELLOW}Coverage test run failed; skipping coverage.${NC}"; return 0; }
+        || { echo -e "${RED}Tests failed in coverage build.${NC}"; return 1; }
 
     echo -e "${GREEN}Capturing coverage data...${NC}"
     # Some gtest macro expansions can confuse line-end detection; ignore mismatch errors.
-    lcov --capture \
+    lcov --quiet --capture \
         --directory "${COVERAGE_BUILD_DIR}" \
         --output-file coverage.info \
-        --ignore-errors inconsistent,negative,mismatch \
+        --ignore-errors inconsistent,negative,mismatch,unused \
         --rc geninfo_unexecuted_blocks=1 \
+        --exclude "/usr/*" \
+        --exclude "*/deps_*/*" \
+        --exclude "*/_deps/*" \
+        --exclude "*/build_*/*" \
+        --exclude "*/package_*/*" \
+        --exclude "*/tests/*" \
+        --exclude "*/Example/*" \
         || { echo -e "${YELLOW}Coverage capture failed; skipping coverage.${NC}"; return 0; }
 
     echo -e "${GREEN}Filtering coverage to engine sources only...${NC}"
-    lcov --remove coverage.info \
+    lcov --quiet --remove coverage.info \
         "/usr/*" \
         "*/deps_cache_*/*" \
+        "*/deps_*/*" \
         "*/_deps/*" \
+        "*/build_*/*" \
+        "*/package_*/*" \
         "*/tests/*" \
         "*/Example/*" \
         --output-file coverage_filtered.info \
@@ -156,6 +165,21 @@ if [ "$RUN_COVERAGE" = true ]; then
     NORMAL_BUILD_RUN_TESTS=false
 fi
 
+# Fast path: coverage mode builds only once (coverage-instrumented), runs tests there,
+# generates coverage output, and installs from the coverage build.
+if [ "$RUN_COVERAGE" = true ]; then
+    if ! generate_coverage_report; then
+        exit 1
+    fi
+
+    echo -e "${GREEN}Installing library (coverage build) to ${INSTALL_PREFIX}...${NC}"
+    cmake --install build_linux_coverage --prefix "$INSTALL_PREFIX" || { echo -e "${RED}Installation failed!${NC}"; exit 1; }
+
+    echo -e "${GREEN}Coverage build completed successfully!${NC}"
+    echo -e "${GREEN}Library installed to: ${INSTALL_PREFIX}${NC}"
+    exit 0
+fi
+
 # Check if CMakeLists.txt exists
 if [ ! -f "CMakeLists.txt" ]; then
     echo -e "${RED}Error: CMakeLists.txt not found!${NC}"
@@ -205,11 +229,6 @@ if [ "$NORMAL_BUILD_RUN_TESTS" = true ]; then
 
     # Run tests and capture output
     "$TEST_EXEC" --gtest_output="xml:${BUILD_DIR}/test_results.xml" 2>&1 | tee ${BUILD_DIR}/Testing/Temporary/LastTest.log || { echo -e "${RED}Tests failed!${NC}"; exit 1; }
-fi
-
-# Generate coverage report (Linux-only, best-effort)
-if [ "$RUN_COVERAGE" = true ]; then
-    generate_coverage_report
 fi
 
 # Install library using CMake

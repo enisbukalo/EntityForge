@@ -1,41 +1,133 @@
 #include "SParticle.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <iomanip>
 #include <random>
+#include <sstream>
 #include "CParticleEmitter.h"
 #include "CTransform.h"
+#include "ExecutablePaths.h"
+#include "FileUtilities.h"
 #include "Logger.h"
 #include "Registry.h"
+#include "SFMLResourceLoader.h"
 #include "World.h"
 
 namespace Systems
 {
+const sf::Texture* SParticle::getCachedTexture(const std::string& resolvedKey) const
+{
+    auto it = m_textureCache.find(resolvedKey);
+    if (it == m_textureCache.end())
+    {
+        return nullptr;
+    }
+    return &it->second;
+}
 
-const sf::Texture* SParticle::loadTexture(const std::string& filepath)
+void SParticle::requestTextureLoad(const std::string& filepath)
 {
     if (filepath.empty())
     {
-        return nullptr;
+        return;
     }
 
-    auto it = m_textureCache.find(filepath);
-    if (it != m_textureCache.end())
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string           resolvedStr  = resolvedPath.string();
+
+    if (resolvedStr.empty())
     {
-        return &it->second;
+        return;
     }
 
-    sf::Texture texture;
-    if (!texture.loadFromFile(filepath))
+    if (m_textureCache.find(resolvedStr) != m_textureCache.end())
     {
-        LOG_ERROR("SParticle: Failed to load texture from '{}'", filepath);
-        return nullptr;
+        return;
     }
 
-    m_textureCache[filepath] = std::move(texture);
-    return &m_textureCache[filepath];
+    m_queuedTextureLoads.insert(resolvedStr);
 }
 
-// Static random number generator
+void SParticle::processQueuedTextureLoads()
+{
+    if (!m_window || !m_window->isOpen())
+    {
+        return;
+    }
+
+    if (m_queuedTextureLoads.empty())
+    {
+        return;
+    }
+
+    // Activate once per batch.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SParticle::processQueuedTextureLoads: setActive(true) failed, deferring {} queued textures",
+                 m_queuedTextureLoads.size());
+        return;
+    }
+
+    // Limit work per frame.
+    constexpr size_t kMaxLoadsPerFrame = 2;
+    size_t           loadsThisFrame    = 0;
+
+    static uint64_t s_debugLoadsLogged = 0;
+
+    for (auto it = m_queuedTextureLoads.begin(); it != m_queuedTextureLoads.end() && loadsThisFrame < kMaxLoadsPerFrame;)
+    {
+        const std::string& resolvedStr = *it;
+
+        const bool logThis = s_debugLoadsLogged < 32;
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: begin '{}'", resolvedStr);
+            ++s_debugLoadsLogged;
+        }
+
+        if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+        {
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        const std::filesystem::path resolvedPath(resolvedStr);
+        std::error_code             ec;
+        const bool                  exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: file does not exist: '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SParticle::processQueuedTextureLoads: loading '{}'", resolvedStr);
+        }
+
+        sf::Texture texture;
+        std::string loadError;
+        const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
+        if (!loaded)
+        {
+            LOG_WARN("SParticle::processQueuedTextureLoads: failed to load '{}' : {}", resolvedStr, loadError);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        m_textureCache.emplace(resolvedStr, std::move(texture));
+        it = m_queuedTextureLoads.erase(it);
+        ++loadsThisFrame;
+    }
+}
+
 static std::random_device               s_rd;
 static std::mt19937                     s_gen(s_rd());
 static std::uniform_real_distribution<> s_dist(0.0, 1.0);
@@ -442,7 +534,10 @@ static void emitParticle(::Components::CParticleEmitter* emitter, const Vec2& wo
     emitter->getParticles().push_back(spawnParticle(emitter, worldPosition, entityRotation));
 }
 
-SParticle::SParticle() : m_vertexArray(sf::Quads), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false) {}
+SParticle::SParticle()
+    : m_vertexArray(sf::PrimitiveType::Triangles), m_window(nullptr), m_pixelsPerMeter(100.0f), m_initialized(false)
+{
+}
 
 SParticle::~SParticle()
 {
@@ -520,11 +615,18 @@ void SParticle::update(float deltaTime, World& world)
 
 void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& world)
 {
+    static uint64_t s_renderEmitterFrameIndex = 0;
+
     sf::RenderWindow* targetWindow = window ? window : m_window;
 
-    if (m_initialized == false || targetWindow == nullptr || !entity.isValid())
+    if (m_initialized == false || targetWindow == nullptr || !targetWindow->isOpen() || !entity.isValid())
     {
         return;
+    }
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter begin E{}:G{}", s_renderEmitterFrameIndex, entity.index, entity.generation);
     }
 
     auto* emitter = world.components().tryGet<::Components::CParticleEmitter>(entity);
@@ -533,7 +635,34 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
         return;
     }
 
-    const sf::Texture* texture = loadTexture(emitter->getTexturePath());
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter got emitter (particles={}, alive={}, texturePath='{}')",
+                 s_renderEmitterFrameIndex,
+                 emitter->getParticles().size(),
+                 emitter->getAliveCount(),
+                 emitter->getTexturePath());
+        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture begin", s_renderEmitterFrameIndex);
+    }
+
+    // Cache-only in the hot render path: if missing, queue it and draw fallback.
+    const std::string& texturePath = emitter->getTexturePath();
+    const sf::Texture* texture     = nullptr;
+    if (!texturePath.empty())
+    {
+        const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
+        const std::string resolvedStr = resolvedPath.string();
+        texture                       = getCachedTexture(resolvedStr);
+        if (!texture)
+        {
+            requestTextureLoad(texturePath);
+        }
+    }
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter loadTexture end (texture={})", s_renderEmitterFrameIndex, texture ? "yes" : "no");
+    }
 
     // Clear vertex array for this emitter
     m_vertexArray.clear();
@@ -546,12 +675,33 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             continue;
         }
 
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            // Throttle: only log a small sample of alive particles
+            static uint32_t s_loggedAliveParticles = 0;
+            if (s_loggedAliveParticles < 8)
+            {
+                LOG_INFO("Frame {}: SParticle alive particle sample pos=({}, {}) size={} rot={} alpha={}",
+                         s_renderEmitterFrameIndex,
+                         particle.position.x,
+                         particle.position.y,
+                         particle.size,
+                         particle.rotation,
+                         particle.alpha);
+                ++s_loggedAliveParticles;
+            }
+        }
+
         // Render in world space (meters). The active sf::View handles world->screen mapping.
         sf::Vector2f worldPos(static_cast<float>(particle.position.x), static_cast<float>(particle.position.y));
         float        halfSizeWorld = particle.size;
 
         // Create color with alpha
-        sf::Color color(particle.color.r, particle.color.g, particle.color.b, static_cast<sf::Uint8>(particle.alpha * 255.0f));
+        const float clampedAlpha = std::clamp(particle.alpha, 0.0f, 1.0f);
+        const auto  alphaByte    = static_cast<std::uint8_t>(clampedAlpha * 255.0f);
+        // If a texture is missing/unavailable, fall back to a visible white quad.
+        sf::Color color = texture ? sf::Color(particle.color.r, particle.color.g, particle.color.b, alphaByte)
+                                  : sf::Color(255, 255, 255, alphaByte);
 
         if (texture)
         {
@@ -578,19 +728,30 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             }
 
             // Texture coordinates (in pixels for SFML - confirmed by official docs)
-            sf::Vector2u texSize      = texture->getSize();
-            sf::Vector2f texCoords[4] = {
+            sf::Vector2u       texSize      = texture->getSize();
+            const sf::Vector2f texCoords[4] = {
                 sf::Vector2f(0.0f, 0.0f),                                                    // Top-left
                 sf::Vector2f(static_cast<float>(texSize.x), 0.0f),                           // Top-right
                 sf::Vector2f(static_cast<float>(texSize.x), static_cast<float>(texSize.y)),  // Bottom-right
                 sf::Vector2f(0.0f, static_cast<float>(texSize.y))                            // Bottom-left
             };
 
-            // Add vertices
-            for (int i = 0; i < 4; ++i)
+            auto appendTextured = [&](int idx)
             {
-                m_vertexArray.append(sf::Vertex(corners[i], color, texCoords[i]));
-            }
+                sf::Vertex v;
+                v.position  = corners[idx];
+                v.color     = color;
+                v.texCoords = texCoords[idx];
+                m_vertexArray.append(v);
+            };
+
+            // Two triangles: (0,1,2) and (0,2,3)
+            appendTextured(0);
+            appendTextured(1);
+            appendTextured(2);
+            appendTextured(0);
+            appendTextured(2);
+            appendTextured(3);
         }
         else
         {
@@ -612,10 +773,21 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
                 corners[i] += worldPos;
             }
 
-            for (int i = 0; i < 4; ++i)
+            auto appendColored = [&](int idx)
             {
-                m_vertexArray.append(sf::Vertex(corners[i], color));
-            }
+                sf::Vertex v;
+                v.position = corners[idx];
+                v.color    = color;
+                m_vertexArray.append(v);
+            };
+
+            // Two triangles: (0,1,2) and (0,2,3)
+            appendColored(0);
+            appendColored(1);
+            appendColored(2);
+            appendColored(0);
+            appendColored(2);
+            appendColored(3);
         }
     }
 
@@ -630,8 +802,28 @@ void SParticle::renderEmitter(Entity entity, sf::RenderWindow* window, World& wo
             states.texture = texture;
         }
 
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SParticle::renderEmitter draw begin (verts={}, textured={})",
+                     s_renderEmitterFrameIndex,
+                     m_vertexArray.getVertexCount(),
+                     texture ? "yes" : "no");
+        }
+
         targetWindow->draw(m_vertexArray, states);
+
+        if (s_renderEmitterFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SParticle::renderEmitter draw end", s_renderEmitterFrameIndex);
+        }
     }
+
+    if (s_renderEmitterFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SParticle::renderEmitter end E{}:G{}", s_renderEmitterFrameIndex, entity.index, entity.generation);
+    }
+
+    ++s_renderEmitterFrameIndex;
 }
 
 }  // namespace Systems

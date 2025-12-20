@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/Window/Event.hpp>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -90,9 +89,6 @@ public:
     {
         m_passToImGui = pass;
     }
-
-    // Expose event processing for tests
-    void processEvent(const sf::Event& event);
 
     std::string_view name() const override
     {

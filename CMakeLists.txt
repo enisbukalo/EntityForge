@@ -15,6 +15,8 @@ project(GameEngine
 option(GAMEENGINE_BUILD_SHARED "Build GameEngine as shared library" OFF)
 option(GAMEENGINE_BUILD_TESTS "Build test programs" ON)
 option(GAMEENGINE_INSTALL "Generate installation target" ON)
+option(GAMEENGINE_ENABLE_COVERAGE "Enable coverage instrumentation for engine targets" OFF)
+option(GAMEENGINE_COVERAGE_INSTRUMENT_TESTS "Instrument unit tests during coverage builds (improves header/inlined engine coverage)" ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -46,9 +48,15 @@ include(FetchContent)
 # Configure dependency caching
 set(FETCHCONTENT_BASE_DIR ${DEPS_CACHE_DIR})
 
-# Find SFML (pre-built for Windows cross-compilation)
-set(SFML_STATIC_LIBRARIES FALSE)
-find_package(SFML 2.6 REQUIRED COMPONENTS graphics window system audio)
+# Find SFML
+# - Linux builds typically use shared libs (system/packaged).
+# - Our Windows cross-compile Docker image builds SFML as static, so request static there.
+if(MINGW)
+    set(SFML_STATIC_LIBRARIES TRUE)
+else()
+    set(SFML_STATIC_LIBRARIES FALSE)
+endif()
+find_package(SFML 3.0.2 REQUIRED COMPONENTS Graphics Window System Audio)
 
 # Find OpenGL (required for ImGui-SFML)
 find_package(OpenGL REQUIRED)
@@ -91,18 +99,18 @@ FetchContent_Declare(nlohmann_json
 
 FetchContent_MakeAvailable(nlohmann_json)
 
-# Fetch ImGui (v1.88 is compatible with ImGui-SFML v2.6)
+# Fetch ImGui (newer version required by ImGui-SFML v3.0)
 FetchContent_Declare(IMGUI
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.88
+    GIT_TAG v1.91.9b
     GIT_SHALLOW ON)
 
 FetchContent_MakeAvailable(IMGUI)
 
-# Fetch ImGui-SFML (v2.6 for SFML 2.6.x compatibility)
+# Fetch ImGui-SFML (v3.0 for SFML 3.x compatibility)
 FetchContent_Declare(IMGUI_SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
-    GIT_TAG v2.6
+    GIT_TAG v3.0
     GIT_SHALLOW ON)
 
 FetchContent_GetProperties(IMGUI_SFML)
@@ -126,14 +134,13 @@ if(NOT imgui_sfml_POPULATED)
     )
 
     target_link_libraries(ImGui-SFML PUBLIC
-        sfml-graphics
-        sfml-window
-        sfml-system
+        SFML::Graphics
+        SFML::Window
+        SFML::System
         OpenGL::GL
     )
 
     target_compile_features(ImGui-SFML PUBLIC cxx_std_17)
-    target_compile_definitions(ImGui-SFML PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 
     # Create an alias to match the original target name
     add_library(ImGui-SFML::ImGui-SFML ALIAS ImGui-SFML)
@@ -144,7 +151,6 @@ set(ENGINE_SOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ENGINE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(ENGINE_INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/Input")
 set(ENGINE_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/components")
-set(ENGINE_ENTITIES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/entities")
 set(ENGINE_SYSTEM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/systems")
 set(ENGINE_UTILITY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/utility")
 set(ENGINE_PHYSICS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/physics")
@@ -192,7 +198,6 @@ target_include_directories(GameEngine
     $<BUILD_INTERFACE:${ENGINE_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${ENGINE_INPUT_DIR}>
     $<BUILD_INTERFACE:${ENGINE_COMPONENT_DIR}>
-    $<BUILD_INTERFACE:${ENGINE_ENTITIES_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}/serialization>
     $<BUILD_INTERFACE:${ENGINE_UTILITY_DIR}>
@@ -201,13 +206,19 @@ target_include_directories(GameEngine
     $<INSTALL_INTERFACE:include/GameEngine/include>
     $<INSTALL_INTERFACE:include/GameEngine/include/Input>
     $<INSTALL_INTERFACE:include/GameEngine/components>
-    $<INSTALL_INTERFACE:include/GameEngine/entities>
     $<INSTALL_INTERFACE:include/GameEngine/systems>
     $<INSTALL_INTERFACE:include/GameEngine/systems/serialization>
     $<INSTALL_INTERFACE:include/GameEngine/utility>
     $<INSTALL_INTERFACE:include/GameEngine/physics>
     $<INSTALL_INTERFACE:include>
 )
+
+# Coverage (apply only to engine targets; tests remain non-instrumented)
+if(GAMEENGINE_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(GameEngine PRIVATE --coverage)
+    # Link options matter for shared builds (static libs don't link), but harmless otherwise.
+    target_link_options(GameEngine PRIVATE --coverage)
+endif()
 
 # nlohmann/json is header-only; include it directly to avoid export/install dependency issues.
 target_include_directories(GameEngine PRIVATE $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>)
@@ -228,16 +239,42 @@ elseif (MSVC)
 endif()
 
 # Link against dependencies
-target_link_libraries(GameEngine
-    PUBLIC
-    sfml-graphics
-    sfml-window
-    sfml-system
-    sfml-audio
-    ImGui-SFML
-    Threads::Threads
-    box2d
-)
+if(GAMEENGINE_BUILD_SHARED AND MINGW AND SFML_STATIC_LIBRARIES)
+    # IMPORTANT (MinGW cross-compile): SFML is built as static libs in the Docker image.
+    # If we export SFML in the GameEngine link interface while GameEngine itself is a DLL,
+    # consumers (like Example) will ALSO link SFML static libs into the EXE.
+    # That duplicates SFML global state across DLL + EXE and can cause hard crashes.
+    target_link_libraries(GameEngine
+        PRIVATE
+        SFML::Graphics
+        SFML::Window
+        SFML::System
+        SFML::Audio
+        ImGui-SFML
+        Threads::Threads
+        box2d
+    )
+
+    # But GameEngine public headers include SFML headers, so consumers still need SFML include dirs.
+    # Provide them as include directories without adding SFML static libs to the consumer link line.
+    target_include_directories(GameEngine PUBLIC
+        $<TARGET_PROPERTY:SFML::Graphics,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::Window,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::System,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:SFML::Audio,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+else()
+    target_link_libraries(GameEngine
+        PUBLIC
+        SFML::Graphics
+        SFML::Window
+        SFML::System
+        SFML::Audio
+        ImGui-SFML
+        Threads::Threads
+        box2d
+    )
+endif()
 
 target_link_libraries(GameEngine PRIVATE spdlog::spdlog)
 
@@ -257,6 +294,11 @@ if(GAMEENGINE_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
+    # Dependencies required by consumers of the installed GameEngine package.
+    # Keep this aligned with the SFML version/components used by the build.
+    set(GAMEENGINE_SFML_MIN_VERSION 3.0.2)
+    set(GAMEENGINE_SFML_COMPONENTS Graphics Window System Audio)
+
     set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/GameEngine)
 
     # Install library and dependencies
@@ -272,7 +314,6 @@ if(GAMEENGINE_INSTALL)
     install(DIRECTORY
         ${ENGINE_INCLUDE_DIR}
         ${ENGINE_COMPONENT_DIR}
-        ${ENGINE_ENTITIES_DIR}
         ${ENGINE_SYSTEM_DIR}
         ${ENGINE_UTILITY_DIR}
         ${ENGINE_PHYSICS_DIR}

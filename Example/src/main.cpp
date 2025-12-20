@@ -1,7 +1,5 @@
 #include <GameEngine.h>
 
-#include <SFML/Graphics.hpp>
-
 #include <Color.h>
 #include <Components.h>
 #include <Logger.h>
@@ -9,6 +7,8 @@
 #include <ScriptTypeRegistry.h>
 #include <SystemLocator.h>
 
+#include <chrono>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
 
@@ -64,6 +64,18 @@ int main()
 {
     try
     {
+        std::set_terminate(
+            []
+            {
+                std::cerr << "FATAL: std::terminate called\n";
+                if (Logger::isInitialized())
+                {
+                    LOG_ERROR_CONSOLE("FATAL: std::terminate called");
+                    Logger::flush();
+                }
+                std::abort();
+            });
+
         Logger::initialize("logs");
         LOG_INFO_CONSOLE("Starting game initialization...");
 
@@ -141,24 +153,20 @@ int main()
         LOG_INFO_CONSOLE("Game initialized!");
         LOG_INFO_CONSOLE("Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)");
 
-        sf::Clock clock;
-        clock.restart();
-
-        auto* window = engine.getRenderer().getWindow();
+        auto lastTick = std::chrono::steady_clock::now();
 
         LOG_INFO_CONSOLE("Entering main loop...");
-        LOG_DEBUG_CONSOLE("Window pointer: {}", window ? "valid" : "null");
-        if (window)
-        {
-            LOG_DEBUG_CONSOLE("Window is open: {}", window->isOpen() ? "yes" : "no");
-        }
+        LOG_DEBUG_CONSOLE("Renderer window: {}", engine.getRenderer().getWindow() ? "valid" : "null");
+        LOG_DEBUG_CONSOLE("Window is open: {}", engine.getRenderer().isWindowOpen() ? "yes" : "no");
         LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
 
         int frameCount = 0;
-        while (engine.is_running() && window && window->isOpen())
+        while (engine.is_running() && engine.getRenderer().isWindowOpen())
         {
             frameCount++;
-            const float dt     = clock.restart().asSeconds();
+            const auto  now    = std::chrono::steady_clock::now();
+            const float dt     = std::chrono::duration<float>(now - lastTick).count();
+            lastTick           = now;
             const float safeDt = (dt < 0.001f) ? 0.016f : dt;  // Use 60 FPS default if dt is too small
 
             if (frameCount % 60 == 0)
@@ -172,19 +180,8 @@ int main()
 
         LOG_INFO_CONSOLE("Main loop exited after {} frames", frameCount);
         LOG_DEBUG_CONSOLE("Engine is running: {}", engine.is_running() ? "yes" : "no");
-        if (window)
-        {
-            LOG_DEBUG_CONSOLE("Window is open: {}", window->isOpen() ? "yes" : "no");
-        }
-        else
-        {
-            LOG_DEBUG_CONSOLE("Window is null");
-        }
-
-        if (window)
-        {
-            window->close();
-        }
+        LOG_DEBUG_CONSOLE("Renderer window: {}", engine.getRenderer().getWindow() ? "valid" : "null");
+        LOG_DEBUG_CONSOLE("Window is open: {}", engine.getRenderer().isWindowOpen() ? "yes" : "no");
 
         LOG_INFO_CONSOLE("Exiting normally");
         Logger::shutdown();

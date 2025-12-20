@@ -39,12 +39,18 @@ Prereqs:
 - Docker Compose
 
 Commands:
-- Linux build (with tests): `docker-compose exec dev ./build_tools/build.sh --linux`
-- Linux build (no tests): `docker-compose exec dev ./build_tools/build.sh --linux --no-tests`
-- Clean build (Linux): `docker-compose exec dev ./build_tools/build.sh --linux --clean`
-- Windows cross-compilation: `docker-compose exec dev ./build_tools/build.sh --windows`
-- Build both: `docker-compose exec dev ./build_tools/build.sh --all`
-- Enter dev container: `docker-compose exec dev /bin/bash`
+- Build the dev image: `docker compose up -d --build`
+
+Convenience commands (available inside the container):
+- Linux build (with tests): `docker compose run --rm dev linux-build-test`
+- Linux build (with coverage): `docker compose run --rm dev linux-coverage`
+- Windows cross-compilation/package: `docker compose run --rm dev windows-package`
+- Format + static analysis: `docker compose run --rm dev format-and-analysis`
+- Format only: `docker compose run --rm dev format-code`
+- Static analysis only: `docker compose run --rm dev static-analysis`
+
+Notes:
+- The dev image is a **toolchain** image; your repo is mounted at `/app` via Docker Compose.
 
 ### Build options
 
@@ -72,9 +78,9 @@ For details (components, systems, scripting lifecycle), see the Wiki links above
 
 - C++17 or later
 - CMake 3.28+
-- SFML 2.6.x
+- SFML 3.0.2+
 - Box2D v3.1.1
-- Dear ImGui 1.88 + ImGui-SFML 2.6
+- Dear ImGui v1.91.9b + ImGui-SFML v3.0
 - GoogleTest (tests)
 - nlohmann/json v3.11.3
 

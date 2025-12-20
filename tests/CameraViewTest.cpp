@@ -42,10 +42,10 @@ TEST(CameraViewTest, ViewportPassthroughMatchesCameraViewport)
     const sf::View view = Internal::buildViewFromCamera(camera, sf::Vector2u(800, 600));
 
     const sf::FloatRect vp = view.getViewport();
-    EXPECT_NEAR(vp.left, 0.25f, kEpsilon);
-    EXPECT_NEAR(vp.top, 0.10f, kEpsilon);
-    EXPECT_NEAR(vp.width, 0.50f, kEpsilon);
-    EXPECT_NEAR(vp.height, 0.75f, kEpsilon);
+    EXPECT_NEAR(vp.position.x, 0.25f, kEpsilon);
+    EXPECT_NEAR(vp.position.y, 0.10f, kEpsilon);
+    EXPECT_NEAR(vp.size.x, 0.50f, kEpsilon);
+    EXPECT_NEAR(vp.size.y, 0.75f, kEpsilon);
 }
 
 TEST(CameraViewTest, SizeUsesWorldHeightZoomAndWindowAspect)
@@ -132,5 +132,5 @@ TEST(CameraViewTest, RotationRadiansConvertedToDegreesWithExpectedSign)
     const sf::View view = Internal::buildViewFromCamera(camera, sf::Vector2u(800, 600));
 
     // SFML normalizes rotation to [0, 360). Treat angles equivalent mod 360 as equal.
-    EXPECT_NEAR(normalizeDegrees(view.getRotation()), normalizeDegrees(-90.0f), 1e-3f);
+    EXPECT_NEAR(normalizeDegrees(view.getRotation().asDegrees()), normalizeDegrees(-90.0f), 1e-3f);
 }

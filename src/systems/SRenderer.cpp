@@ -1,5 +1,11 @@
 #include "SRenderer.h"
+#include <SFML/Window/Context.hpp>
 #include <algorithm>
+#include <cstdint>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+#include <unordered_set>
 #include <vector>
 #include "CCamera.h"
 #include "CCollider2D.h"
@@ -10,7 +16,10 @@
 #include "CTexture.h"
 #include "CTransform.h"
 #include "CameraView.h"
+#include "ExecutablePaths.h"
+#include "FileUtilities.h"
 #include "Logger.h"
+#include "SFMLResourceLoader.h"
 #include "SParticle.h"
 #include "World.h"
 
@@ -38,9 +47,10 @@ bool SRenderer::initialize(const WindowConfig& config)
     }
 
     // Create the window
-    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(config.width, config.height),
+    m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(sf::Vector2u{config.width, config.height}),
                                                   config.title,
                                                   config.getStyleFlags(),
+                                                  config.getState(),
                                                   config.getContextSettings());
 
     // Check if window was created and is open
@@ -93,9 +103,56 @@ void SRenderer::update(float deltaTime, World& world)
 
 void SRenderer::render(World& world)
 {
+    static uint64_t s_renderFrameIndex = 0;
+
     if (!m_initialized || !m_window || !m_window->isOpen())
     {
         return;
+    }
+
+    // Ensure the window context is active on this thread before doing any GPU work.
+    // SFML 3 on Windows is stricter about an active context for OpenGL entry points.
+    const bool contextActive = m_window->setActive(true);
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render setActive(true) => {}", s_renderFrameIndex, contextActive ? "true" : "false");
+    }
+
+    if (!contextActive)
+    {
+        // We can still draw non-OpenGL-dependent fallbacks, but texture loads would be unsafe.
+        // Continue rendering with cache-only texture usage.
+    }
+
+    // Process queued texture loads once per frame (not per-entity).
+    // This keeps file IO + GPU uploads out of hot per-entity render paths.
+    if (contextActive)
+    {
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer::render processQueuedTextureLoads begin (queued={})",
+                     s_renderFrameIndex,
+                     m_queuedTextureLoads.size());
+        }
+        processQueuedTextureLoads();
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer::render processQueuedTextureLoads end (queued={})",
+                     s_renderFrameIndex,
+                     m_queuedTextureLoads.size());
+        }
+        if (m_particleSystem)
+        {
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads begin", s_renderFrameIndex);
+            }
+            m_particleSystem->processQueuedTextureLoads();
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: SRenderer::render particle processQueuedTextureLoads end", s_renderFrameIndex);
+            }
+        }
     }
 
     struct RenderItem
@@ -127,6 +184,11 @@ void SRenderer::render(World& world)
                 renderQueue.push_back({entity, emitter.getZIndex(), true});
             }
         });
+
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render queue built ({} items)", s_renderFrameIndex, renderQueue.size());
+    }
 
     std::sort(renderQueue.begin(),
               renderQueue.end(),
@@ -160,6 +222,11 @@ void SRenderer::render(World& world)
         cameras.push_back({Entity::null(), &defaultCamera});
     }
 
+    if (s_renderFrameIndex < 3)
+    {
+        LOG_INFO("Frame {}: SRenderer::render cameras ({} total)", s_renderFrameIndex, cameras.size());
+    }
+
     for (const CameraItem& cameraItem : cameras)
     {
         const ::Components::CCamera& camera = *cameraItem.camera;
@@ -168,23 +235,108 @@ void SRenderer::render(World& world)
             continue;
         }
 
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer camera begin", s_renderFrameIndex);
+            LOG_INFO("Frame {}: SRenderer buildViewFromCamera begin", s_renderFrameIndex);
+        }
+
         const sf::View view = Internal::buildViewFromCamera(camera, m_window->getSize());
+
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer buildViewFromCamera end", s_renderFrameIndex);
+            LOG_INFO("Frame {}: SRenderer setView begin", s_renderFrameIndex);
+        }
+
         m_window->setView(view);
 
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer setView end", s_renderFrameIndex);
+        }
+
+        size_t itemIndex = 0;
         for (const RenderItem& item : renderQueue)
         {
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} begin E{}:G{} particle={}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation,
+                         item.isParticleEmitter);
+            }
+
             if (item.isParticleEmitter)
             {
                 if (m_particleSystem && m_particleSystem->isInitialized())
                 {
+                    if (s_renderFrameIndex < 3)
+                    {
+                        LOG_INFO("Frame {}: RenderItem {} particle render begin E{}:G{}",
+                                 s_renderFrameIndex,
+                                 itemIndex,
+                                 item.entity.index,
+                                 item.entity.generation);
+                    }
                     m_particleSystem->renderEmitter(item.entity, m_window.get(), world);
+                    if (s_renderFrameIndex < 3)
+                    {
+                        LOG_INFO("Frame {}: RenderItem {} particle render end   E{}:G{}",
+                                 s_renderFrameIndex,
+                                 itemIndex,
+                                 item.entity.index,
+                                 item.entity.generation);
+                    }
                 }
+
+                if (s_renderFrameIndex < 3)
+                {
+                    LOG_INFO("Frame {}: RenderItem {} end   E{}:G{} particle=true",
+                             s_renderFrameIndex,
+                             itemIndex,
+                             item.entity.index,
+                             item.entity.generation);
+                }
+                ++itemIndex;
                 continue;
             }
 
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} entity render begin E{}:G{}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+            }
             renderEntity(item.entity, world);
+            if (s_renderFrameIndex < 3)
+            {
+                LOG_INFO("Frame {}: RenderItem {} entity render end   E{}:G{}",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+                LOG_INFO("Frame {}: RenderItem {} end   E{}:G{} particle=false",
+                         s_renderFrameIndex,
+                         itemIndex,
+                         item.entity.index,
+                         item.entity.generation);
+            }
+
+            ++itemIndex;
+        }
+
+        if (s_renderFrameIndex < 3)
+        {
+            LOG_INFO("Frame {}: SRenderer camera end", s_renderFrameIndex);
         }
     }
+
+    ++s_renderFrameIndex;
 }
 
 void SRenderer::clear(const Color& color)
@@ -213,6 +365,132 @@ sf::RenderWindow* SRenderer::getWindow()
     return m_window.get();
 }
 
+const sf::Texture* SRenderer::getCachedTexture(const std::string& resolvedKey) const
+{
+    auto it = m_textureCache.find(resolvedKey);
+    if (it == m_textureCache.end())
+    {
+        return nullptr;
+    }
+    return &it->second;
+}
+
+void SRenderer::requestTextureLoad(const std::string& filepath)
+{
+    if (filepath.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string           resolvedStr  = resolvedPath.string();
+
+    if (resolvedStr.empty())
+    {
+        return;
+    }
+
+    // Already cached?
+    if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+    {
+        return;
+    }
+
+    m_queuedTextureLoads.insert(resolvedStr);
+}
+
+void SRenderer::processQueuedTextureLoads()
+{
+    if (!m_window || !m_window->isOpen())
+    {
+        return;
+    }
+
+    if (m_queuedTextureLoads.empty())
+    {
+        return;
+    }
+
+    // Activate once per batch.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SRenderer::processQueuedTextureLoads: setActive(true) failed, deferring {} queued textures",
+                 m_queuedTextureLoads.size());
+        return;
+    }
+
+    // Load at most N textures per frame to avoid stalls.
+    constexpr size_t kMaxLoadsPerFrame = 4;
+    size_t           loadsThisFrame    = 0;
+
+    static uint64_t s_debugLoadsLogged = 0;
+
+    for (auto it = m_queuedTextureLoads.begin(); it != m_queuedTextureLoads.end() && loadsThisFrame < kMaxLoadsPerFrame;)
+    {
+        const std::string& resolvedStr = *it;
+
+        const std::filesystem::path resolvedPath(resolvedStr);
+
+        const bool logThis = s_debugLoadsLogged < 32;
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: begin '{}'", resolvedStr);
+            ++s_debugLoadsLogged;
+            const auto genTexturesPtr = sf::Context::getFunction("glGenTextures");
+            const auto texImage2DPtr  = sf::Context::getFunction("glTexImage2D");
+            LOG_INFO("SRenderer::processQueuedTextureLoads: glGenTextures={} glTexImage2D={}",
+                     genTexturesPtr ? "ok" : "null",
+                     texImage2DPtr ? "ok" : "null");
+        }
+
+        // Another request might have loaded it already.
+        if (m_textureCache.find(resolvedStr) != m_textureCache.end())
+        {
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: file does not exist: '{}'", resolvedStr);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: loading '{}'", resolvedStr);
+        }
+
+        sf::Texture texture;
+        std::string loadError;
+        const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
+
+        if (!loaded)
+        {
+            LOG_WARN("SRenderer::processQueuedTextureLoads: failed to load '{}' : {}", resolvedStr, loadError);
+            it = m_queuedTextureLoads.erase(it);
+            continue;
+        }
+
+        m_textureCache.emplace(resolvedStr, std::move(texture));
+
+        if (logThis)
+        {
+            LOG_INFO("SRenderer::processQueuedTextureLoads: cached '{}' (cacheSize={})", resolvedStr, m_textureCache.size());
+        }
+
+        it = m_queuedTextureLoads.erase(it);
+        ++loadsThisFrame;
+    }
+}
+
 const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
 {
     if (filepath.empty())
@@ -220,25 +498,55 @@ const sf::Texture* SRenderer::loadTexture(const std::string& filepath)
         return nullptr;
     }
 
+    if (!m_window || !m_window->isOpen())
+    {
+        return nullptr;
+    }
+
+    // Texture creation/upload may touch OpenGL state; ensure the window context is active.
+    // If activation fails, fail gracefully instead of risking a hard crash.
+    if (!m_window->setActive(true))
+    {
+        LOG_WARN("SRenderer::loadTexture: setActive(true) failed, skipping load for '{}'", filepath);
+        return nullptr;
+    }
+
+    const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(filepath);
+    const std::string           resolvedStr  = resolvedPath.string();
+
     // Check if texture is already cached
-    auto it = m_textureCache.find(filepath);
+    auto it = m_textureCache.find(resolvedStr);
     if (it != m_textureCache.end())
     {
         return &it->second;
     }
 
-    // Load new texture
-    sf::Texture texture;
-    if (!texture.loadFromFile(filepath))
     {
-        LOG_ERROR("SRenderer: Failed to load texture from '{}'", filepath);
+        std::error_code ec;
+        const bool      exists = std::filesystem::exists(resolvedPath, ec);
+        if (ec)
+        {
+            LOG_WARN("SRenderer::loadTexture: exists() error for '{}' : {}", resolvedStr, ec.message());
+        }
+        if (!exists)
+        {
+            LOG_WARN("SRenderer::loadTexture: file does not exist: '{}' (original='{}')", resolvedStr, filepath);
+            return nullptr;
+        }
+    }
+
+    sf::Texture texture;
+    std::string loadError;
+    const bool  loaded = Internal::SFMLResourceLoader::loadTextureFromFileBytes(resolvedPath, texture, &loadError);
+    if (!loaded)
+    {
+        LOG_WARN("SRenderer::loadTexture: failed to load '{}' : {}", resolvedStr, loadError);
         return nullptr;
     }
 
-    // Cache the texture
-    m_textureCache[filepath] = std::move(texture);
-    LOG_DEBUG("SRenderer: Loaded texture '{}'", filepath);
-    return &m_textureCache[filepath];
+    auto [insertedIt, inserted] = m_textureCache.emplace(resolvedStr, std::move(texture));
+    (void)inserted;
+    return &insertedIt->second;
 }
 
 const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std::string& fragmentPath)
@@ -248,8 +556,18 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
         return nullptr;
     }
 
+    const std::filesystem::path resolvedVertexPath   = vertexPath.empty()
+                                                           ? std::filesystem::path{}
+                                                           : Internal::ExecutablePaths::resolveRelativeToExecutableDir(vertexPath);
+    const std::filesystem::path resolvedFragmentPath = fragmentPath.empty()
+                                                           ? std::filesystem::path{}
+                                                           : Internal::ExecutablePaths::resolveRelativeToExecutableDir(fragmentPath);
+
+    const std::string resolvedVertexStr = resolvedVertexPath.empty() ? std::string{} : resolvedVertexPath.string();
+    const std::string resolvedFragmentStr = resolvedFragmentPath.empty() ? std::string{} : resolvedFragmentPath.string();
+
     // Create cache key from both paths
-    std::string cacheKey = vertexPath + "|" + fragmentPath;
+    std::string cacheKey = resolvedVertexStr + "|" + resolvedFragmentStr;
 
     // Check if shader is already cached
     auto it = m_shaderCache.find(cacheKey);
@@ -269,29 +587,45 @@ const sf::Shader* SRenderer::loadShader(const std::string& vertexPath, const std
     auto shader = std::make_unique<sf::Shader>();
     bool loaded = false;
 
-    if (!vertexPath.empty() && !fragmentPath.empty())
+    // Avoid SFML file-IO path (loadFromFile) for consistency with Windows crash workaround.
+    try
     {
-        loaded = shader->loadFromFile(vertexPath, fragmentPath);
+        if (!resolvedVertexStr.empty() && !resolvedFragmentStr.empty())
+        {
+            const std::string vertexSource   = Internal::FileUtilities::readFile(resolvedVertexStr);
+            const std::string fragmentSource = Internal::FileUtilities::readFile(resolvedFragmentStr);
+            loaded                           = shader->loadFromMemory(vertexSource, fragmentSource);
+        }
+        else if (!resolvedVertexStr.empty())
+        {
+            const std::string vertexSource = Internal::FileUtilities::readFile(resolvedVertexStr);
+            loaded                         = shader->loadFromMemory(vertexSource, sf::Shader::Type::Vertex);
+        }
+        else
+        {
+            const std::string fragmentSource = Internal::FileUtilities::readFile(resolvedFragmentStr);
+            loaded                           = shader->loadFromMemory(fragmentSource, sf::Shader::Type::Fragment);
+        }
     }
-    else if (!vertexPath.empty())
+    catch (const std::exception& e)
     {
-        loaded = shader->loadFromFile(vertexPath, sf::Shader::Vertex);
-    }
-    else
-    {
-        loaded = shader->loadFromFile(fragmentPath, sf::Shader::Fragment);
+        LOG_ERROR("SRenderer: Exception loading shader sources (vertex: '{}', fragment: '{}'): {}",
+                  resolvedVertexStr,
+                  resolvedFragmentStr,
+                  e.what());
+        loaded = false;
     }
 
     if (!loaded)
     {
-        LOG_ERROR("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+        LOG_ERROR("SRenderer: Failed to load shader (vertex: '{}', fragment: '{}')", resolvedVertexStr, resolvedFragmentStr);
         return nullptr;
     }
 
     // Cache the shader
     const sf::Shader* shaderPtr = shader.get();
     m_shaderCache[cacheKey]     = std::move(shader);
-    LOG_DEBUG("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", vertexPath, fragmentPath);
+    LOG_DEBUG("SRenderer: Loaded shader (vertex: '{}', fragment: '{}')", resolvedVertexStr, resolvedFragmentStr);
     return shaderPtr;
 }
 
@@ -363,7 +697,18 @@ void SRenderer::renderEntity(Entity entity, World& world)
         auto* textureComp = components.tryGet<::Components::CTexture>(entity);
         if (textureComp)
         {
-            texture = loadTexture(textureComp->getTexturePath());
+            const std::string& texturePath = textureComp->getTexturePath();
+            if (!texturePath.empty())
+            {
+                // Cache-only in the hot render path: if missing, queue it and draw fallback.
+                const std::filesystem::path resolvedPath = Internal::ExecutablePaths::resolveRelativeToExecutableDir(texturePath);
+                const std::string resolvedStr = resolvedPath.string();
+                texture                       = getCachedTexture(resolvedStr);
+                if (!texture)
+                {
+                    requestTextureLoad(texturePath);
+                }
+            }
         }
     }
 
@@ -417,18 +762,18 @@ void SRenderer::renderEntity(Entity entity, World& world)
                 float halfWidth  = collider->getBoxHalfWidth();
                 float halfHeight = collider->getBoxHalfHeight();
                 rect.setSize(sf::Vector2f(halfWidth * 2.0f, halfHeight * 2.0f));
-                rect.setOrigin(halfWidth, halfHeight);
+                rect.setOrigin(sf::Vector2f{halfWidth, halfHeight});
             }
             else
             {
                 // Default rectangle size (pixels converted to meters)
                 constexpr float kDefaultSizeM = 50.0f / kPixelsPerMeter;
                 rect.setSize(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
-                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
+                rect.setOrigin(sf::Vector2f{(kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y});
             }
 
-            rect.setPosition(pos.x, pos.y);
-            rect.setRotation(rotationDegrees);
+            rect.setPosition(sf::Vector2f{pos.x, pos.y});
+            rect.setRotation(sf::degrees(rotationDegrees));
             rect.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -458,10 +803,10 @@ void SRenderer::renderEntity(Entity entity, World& world)
             }
 
             circle.setRadius(radius);
-            circle.setOrigin(radius, radius);
-            circle.setPosition(pos.x, pos.y);
-            circle.setScale(scale.x, scale.y);
-            circle.setRotation(rotationDegrees);
+            circle.setOrigin(sf::Vector2f{radius, radius});
+            circle.setPosition(sf::Vector2f{pos.x, pos.y});
+            circle.setScale(sf::Vector2f{scale.x, scale.y});
+            circle.setRotation(sf::degrees(rotationDegrees));
             circle.setFillColor(toSFMLColor(finalColor));
 
             if (texture)
@@ -546,8 +891,8 @@ void SRenderer::renderEntity(Entity entity, World& world)
                     const float worldWidth  = maxX - minX;
                     const float worldHeight = maxY - minY;
 
-                    const float texWidthPx  = std::max(1.0f, bounds.width);
-                    const float texHeightPx = std::max(1.0f, bounds.height);
+                    const float texWidthPx  = std::max(1.0f, bounds.size.x);
+                    const float texHeightPx = std::max(1.0f, bounds.size.y);
 
                     if (std::isfinite(worldWidth) && std::isfinite(worldHeight) && worldWidth > 0.0f && worldHeight > 0.0f)
                     {
@@ -556,31 +901,33 @@ void SRenderer::renderEntity(Entity entity, World& world)
                         const float targetWorld  = std::max(worldWidth, worldHeight);
                         const float spriteSizePx = std::max(1.0f, std::min(texWidthPx, texHeightPx));
                         const float uniformScale = targetWorld / spriteSizePx;
-                        sprite.setScale(uniformScale * scale.x, uniformScale * scale.y);
+                        sprite.setScale(sf::Vector2f{uniformScale * scale.x, uniformScale * scale.y});
 
                         // Map the body origin (0,0) into the collider bounds and use that as the sprite origin.
-                        const float originXPx = bounds.left + ((0.0f - minX) / worldWidth) * texWidthPx;
-                        const float originYPx = bounds.top + ((0.0f - minY) / worldHeight) * texHeightPx;
-                        sprite.setOrigin(originXPx, originYPx);
+                        const float originXPx = bounds.position.x + ((0.0f - minX) / worldWidth) * texWidthPx;
+                        const float originYPx = bounds.position.y + ((0.0f - minY) / worldHeight) * texHeightPx;
+                        sprite.setOrigin(sf::Vector2f{originXPx, originYPx});
                     }
                     else
                     {
                         const float baseScale = 1.0f / kPixelsPerMeter;
-                        sprite.setScale(baseScale * scale.x, baseScale * scale.y);
-                        sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
+                        sprite.setScale(sf::Vector2f{baseScale * scale.x, baseScale * scale.y});
+                        sprite.setOrigin(sf::Vector2f{bounds.position.x + bounds.size.x / 2.0f,
+                                                      bounds.position.y + bounds.size.y / 2.0f});
                     }
                 }
                 else
                 {
                     const float baseScale = 1.0f / kPixelsPerMeter;
-                    sprite.setScale(baseScale * scale.x, baseScale * scale.y);
-                    sprite.setOrigin(bounds.left + bounds.width / 2.0f, bounds.top + bounds.height / 2.0f);
+                    sprite.setScale(sf::Vector2f{baseScale * scale.x, baseScale * scale.y});
+                    sprite.setOrigin(sf::Vector2f{bounds.position.x + bounds.size.x / 2.0f,
+                                                  bounds.position.y + bounds.size.y / 2.0f});
                 }
 
-                sprite.setPosition(pos.x, pos.y);
+                sprite.setPosition(sf::Vector2f{pos.x, pos.y});
                 // Convention: +Y is forward at 0 radians. Most existing Example textures were authored
                 // "forward" pointing down (screen-space), so apply a 180° flip at render time.
-                sprite.setRotation(rotationDegrees + 180.0f);
+                sprite.setRotation(sf::degrees(rotationDegrees + 180.0f));
                 sprite.setColor(toSFMLColor(finalColor));
 
                 m_window->draw(sprite, states);
@@ -590,9 +937,9 @@ void SRenderer::renderEntity(Entity entity, World& world)
                 // Fallback: draw a rectangle if no texture
                 constexpr float    kDefaultSizeM = 50.0f / kPixelsPerMeter;
                 sf::RectangleShape rect(sf::Vector2f(kDefaultSizeM * scale.x, kDefaultSizeM * scale.y));
-                rect.setOrigin((kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y);
-                rect.setPosition(pos.x, pos.y);
-                rect.setRotation(rotationDegrees);
+                rect.setOrigin(sf::Vector2f{(kDefaultSizeM * 0.5f) * scale.x, (kDefaultSizeM * 0.5f) * scale.y});
+                rect.setPosition(sf::Vector2f{pos.x, pos.y});
+                rect.setRotation(sf::degrees(rotationDegrees));
                 rect.setFillColor(toSFMLColor(finalColor));
                 m_window->draw(rect, states);
             }
@@ -629,7 +976,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
             // Create line using VertexArray
             float           thickness = renderable->getLineThickness();
             sf::Color       lineColor = toSFMLColor(finalColor);
-            sf::VertexArray line(sf::Lines, 2);
+            sf::VertexArray line(sf::PrimitiveType::Lines, 2);
             line[0].position = worldStart;
             line[0].color    = lineColor;
             line[1].position = worldEnd;
@@ -653,7 +1000,7 @@ void SRenderer::renderEntity(Entity entity, World& world)
                     int halfThickness = static_cast<int>(thickness / 2.0f);
                     for (int offset = -halfThickness; offset <= halfThickness; ++offset)
                     {
-                        sf::VertexArray thickLine(sf::Lines, 2);
+                        sf::VertexArray thickLine(sf::PrimitiveType::Lines, 2);
                         thickLine[0].position = worldStart + perpendicular * static_cast<float>(offset);
                         thickLine[0].color    = lineColor;
                         thickLine[1].position = worldEnd + perpendicular * static_cast<float>(offset);

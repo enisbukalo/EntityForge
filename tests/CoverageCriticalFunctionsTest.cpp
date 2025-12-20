@@ -2,23 +2,23 @@
 
 #include <World.h>
 
-#include <components/CMaterial.h>
-#include <components/CRenderable.h>
-#include <components/CTransform.h>
-#include <components/CCollider2D.h>
-#include <components/CNativeScript.h>
-#include <components/CParticleEmitter.h>
-#include <components/CPhysicsBody2D.h>
-#include <components/CShader.h>
-#include <components/CTexture.h>
+#include <CMaterial.h>
+#include <CRenderable.h>
+#include <CTransform.h>
+#include <CCollider2D.h>
+#include <CNativeScript.h>
+#include <CParticleEmitter.h>
+#include <CPhysicsBody2D.h>
+#include <CShader.h>
+#include <CTexture.h>
 
-#include <systems/SAudio.h>
-#include <systems/SCamera.h>
-#include <systems/SInput.h>
-#include <systems/SParticle.h>
-#include <systems/SRenderer.h>
-#include <systems/S2DPhysics.h>
-#include <systems/SystemLocator.h>
+#include <SAudio.h>
+#include <SCamera.h>
+#include <SInput.h>
+#include <SParticle.h>
+#include <SRenderer.h>
+#include <S2DPhysics.h>
+#include <SystemLocator.h>
 
 namespace
 {

@@ -40,17 +40,25 @@ target_link_libraries(unit_tests PRIVATE
     GameEngine
     GTest::gtest
     GTest::gtest_main
-    sfml-graphics
-    sfml-window
-    sfml-system
-    sfml-audio
+    SFML::Graphics
+    SFML::Window
+    SFML::System
+    SFML::Audio
     ImGui-SFML
 )
 
-# When coverage flags are enabled, link with gcov to resolve coverage symbols
-# from dependencies that may have been built with coverage instrumentation.
-if(CMAKE_CXX_FLAGS MATCHES "--coverage" OR CMAKE_C_FLAGS MATCHES "--coverage")
-    target_link_libraries(unit_tests PRIVATE gcov)
+# When engine coverage is enabled, unit_tests must link the coverage runtime
+# and (optionally) be instrumented so header/inlined engine logic executed from
+# tests is attributed correctly to engine headers.
+if(GAMEENGINE_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if(GAMEENGINE_COVERAGE_INSTRUMENT_TESTS)
+        target_compile_options(unit_tests PRIVATE --coverage)
+    endif()
+
+    target_link_options(unit_tests PRIVATE --coverage)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_libraries(unit_tests PRIVATE gcov)
+    endif()
 endif()
 
 # Link Windows-specific libraries only when building for Windows
@@ -72,27 +80,14 @@ target_include_directories(unit_tests PRIVATE
     $<TARGET_PROPERTY:spdlog::spdlog,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-# Copy required DLLs to the test executable directory on Windows
-if(WIN32)
+# Copy required DLLs to the test executable directory on Windows.
+# Prefer target-based dependency discovery for native Windows builds.
+if(WIN32 AND NOT CMAKE_CROSSCOMPILING)
     add_custom_command(TARGET unit_tests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:GameEngine>
+            $<TARGET_RUNTIME_DLLS:unit_tests>
             $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-system>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-window>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-graphics>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sfml-audio>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:ImGui-SFML>
-            $<TARGET_FILE_DIR:unit_tests>
-        COMMENT "Copying DLLs to test executable directory"
+        COMMAND_EXPAND_LISTS
+        COMMENT "Copying runtime DLLs to test executable directory"
     )
 endif()
