@@ -21,7 +21,7 @@ Entity spawnCameraController(World& world, std::string_view targetCameraName)
 {
     Entity controller = world.createEntity();
 
-    auto* script = world.components().add<Components::CNativeScript>(controller);
+    Components::CNativeScript* script = world.components().add<Components::CNativeScript>(controller);
     script->bind<CameraController>(targetCameraName);
 
     return controller;
@@ -34,7 +34,7 @@ CameraController::CameraController(std::string_view targetCameraName) : m_target
 void CameraController::onCreate(Entity self, World& world)
 {
     // Add input controller component for action bindings
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         input = world.components().add<Components::CInputController>(self);
@@ -57,7 +57,7 @@ void CameraController::onCreate(Entity self, World& world)
 void CameraController::onUpdate(float deltaTime, Entity self, World& world)
 {
     // Get our input controller
-    auto* input = world.components().tryGet<Components::CInputController>(self);
+    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         return;
@@ -70,7 +70,7 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
         return;
     }
 
-    auto* camera = world.components().tryGet<Components::CCamera>(cameraEntity);
+    Components::CCamera* camera = world.components().tryGet<Components::CCamera>(cameraEntity);
     if (!camera)
     {
         return;
