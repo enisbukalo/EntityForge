@@ -102,11 +102,27 @@ RUN set -eux; \
         'cd /app' \
         'exec ./build_tools/format_and_analysis.sh' \
         > /usr/local/bin/format-and-analysis; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/format.sh' \
+        > /usr/local/bin/format-code; \
+    printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'set -euo pipefail' \
+        '' \
+        'cd /app' \
+        'exec ./build_tools/static_analysis.sh' \
+        > /usr/local/bin/static-analysis; \
     chmod +x \
         /usr/local/bin/linux-build-test \
         /usr/local/bin/linux-coverage \
         /usr/local/bin/windows-package \
-        /usr/local/bin/format-and-analysis
+        /usr/local/bin/format-and-analysis \
+        /usr/local/bin/format-code \
+        /usr/local/bin/static-analysis
 
 # Default command
 CMD ["/bin/bash"] 

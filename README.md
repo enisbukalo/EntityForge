@@ -46,6 +46,8 @@ Convenience commands (available inside the container):
 - Linux build (with coverage): `docker compose run --rm dev linux-coverage`
 - Windows cross-compilation/package: `docker compose run --rm dev windows-package`
 - Format + static analysis: `docker compose run --rm dev format-and-analysis`
+- Format only: `docker compose run --rm dev format-code`
+- Static analysis only: `docker compose run --rm dev static-analysis`
 
 Notes:
 - The dev image is a **toolchain** image; your repo is mounted at `/app` via Docker Compose.
