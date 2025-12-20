@@ -50,6 +50,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-deps-
 
+      - name: Lint (clang-format)
+        run: |
+          find . -type f \( -name "*.cpp" -o -name "*.h" \) \
+            -not -path "./build/*" \
+            -not -path "./build_*/*" \
+            -not -path "./deps_cache/*" \
+            -not -path "./deps_cache_*/*" \
+            -not -path "./package/*" \
+            -not -path "./package_*/*" \
+            -not -path "./example_project/*" \
+            -not -path "./tests/*" \
+            -not -path "./Example/build/*" \
+            -exec clang-format -style=file --dry-run --Werror {} +
+
+      - name: Static analysis
+        run: |
+          chmod +x build_tools/static_analysis.sh
+          ./build_tools/static_analysis.sh
+
       - name: Build and Test
         run: |
           chmod +x build_tools/build.sh build_tools/build_linux.sh

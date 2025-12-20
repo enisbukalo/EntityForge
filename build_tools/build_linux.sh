@@ -16,9 +16,10 @@ INSTALL_PREFIX="./package_linux"
 RUN_COVERAGE=false
 
 generate_coverage_report() {
-    # Coverage is best-effort and only runs when tests are enabled.
+    # Coverage mode must run tests; test failures must fail the build.
     if [ "$RUN_TESTS" != true ]; then
-        return 0
+        echo -e "${RED}Error: --coverage requires tests to be enabled (do not use --no-tests).${NC}"
+        return 1
     fi
 
     if ! command -v lcov &> /dev/null || ! command -v genhtml &> /dev/null; then
@@ -68,7 +69,7 @@ generate_coverage_report() {
 
     echo -e "${GREEN}Running tests (coverage build)...${NC}"
     "${TEST_EXEC}" --gtest_output="xml:${COVERAGE_BUILD_DIR}/test_results.xml" \
-        || { echo -e "${YELLOW}Coverage test run failed; skipping coverage.${NC}"; return 0; }
+        || { echo -e "${RED}Tests failed in coverage build.${NC}"; return 1; }
 
     echo -e "${GREEN}Capturing coverage data...${NC}"
     # Some gtest macro expansions can confuse line-end detection; ignore mismatch errors.
@@ -156,6 +157,21 @@ if [ "$RUN_COVERAGE" = true ]; then
     NORMAL_BUILD_RUN_TESTS=false
 fi
 
+# Fast path: coverage mode builds only once (coverage-instrumented), runs tests there,
+# generates coverage output, and installs from the coverage build.
+if [ "$RUN_COVERAGE" = true ]; then
+    if ! generate_coverage_report; then
+        exit 1
+    fi
+
+    echo -e "${GREEN}Installing library (coverage build) to ${INSTALL_PREFIX}...${NC}"
+    cmake --install build_linux_coverage --prefix "$INSTALL_PREFIX" || { echo -e "${RED}Installation failed!${NC}"; exit 1; }
+
+    echo -e "${GREEN}Coverage build completed successfully!${NC}"
+    echo -e "${GREEN}Library installed to: ${INSTALL_PREFIX}${NC}"
+    exit 0
+fi
+
 # Check if CMakeLists.txt exists
 if [ ! -f "CMakeLists.txt" ]; then
     echo -e "${RED}Error: CMakeLists.txt not found!${NC}"
@@ -205,11 +221,6 @@ if [ "$NORMAL_BUILD_RUN_TESTS" = true ]; then
 
     # Run tests and capture output
     "$TEST_EXEC" --gtest_output="xml:${BUILD_DIR}/test_results.xml" 2>&1 | tee ${BUILD_DIR}/Testing/Temporary/LastTest.log || { echo -e "${RED}Tests failed!${NC}"; exit 1; }
-fi
-
-# Generate coverage report (Linux-only, best-effort)
-if [ "$RUN_COVERAGE" = true ]; then
-    generate_coverage_report
 fi
 
 # Install library using CMake
