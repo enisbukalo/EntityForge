@@ -39,10 +39,8 @@ generate_coverage_report() {
     cmake -B "${COVERAGE_BUILD_DIR}" \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DGAMEENGINE_BUILD_SHARED=$BUILD_SHARED \
-        -DCMAKE_C_FLAGS="--coverage" \
-        -DCMAKE_CXX_FLAGS="--coverage" \
-        -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-        -DCMAKE_SHARED_LINKER_FLAGS="--coverage" \
+        -DGAMEENGINE_ENABLE_COVERAGE=ON \
+        -DGAMEENGINE_COVERAGE_INSTRUMENT_TESTS=ON \
         -DDEPS_CACHE_DIR="${PWD}/deps_cache_linux_coverage" \
         || { echo -e "${YELLOW}Coverage configuration failed; skipping coverage.${NC}"; return 0; }
 
@@ -73,18 +71,28 @@ generate_coverage_report() {
 
     echo -e "${GREEN}Capturing coverage data...${NC}"
     # Some gtest macro expansions can confuse line-end detection; ignore mismatch errors.
-    lcov --capture \
+    lcov --quiet --capture \
         --directory "${COVERAGE_BUILD_DIR}" \
         --output-file coverage.info \
-        --ignore-errors inconsistent,negative,mismatch \
+        --ignore-errors inconsistent,negative,mismatch,unused \
         --rc geninfo_unexecuted_blocks=1 \
+        --exclude "/usr/*" \
+        --exclude "*/deps_*/*" \
+        --exclude "*/_deps/*" \
+        --exclude "*/build_*/*" \
+        --exclude "*/package_*/*" \
+        --exclude "*/tests/*" \
+        --exclude "*/Example/*" \
         || { echo -e "${YELLOW}Coverage capture failed; skipping coverage.${NC}"; return 0; }
 
     echo -e "${GREEN}Filtering coverage to engine sources only...${NC}"
-    lcov --remove coverage.info \
+    lcov --quiet --remove coverage.info \
         "/usr/*" \
         "*/deps_cache_*/*" \
+        "*/deps_*/*" \
         "*/_deps/*" \
+        "*/build_*/*" \
+        "*/package_*/*" \
         "*/tests/*" \
         "*/Example/*" \
         --output-file coverage_filtered.info \

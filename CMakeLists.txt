@@ -15,6 +15,8 @@ project(GameEngine
 option(GAMEENGINE_BUILD_SHARED "Build GameEngine as shared library" OFF)
 option(GAMEENGINE_BUILD_TESTS "Build test programs" ON)
 option(GAMEENGINE_INSTALL "Generate installation target" ON)
+option(GAMEENGINE_ENABLE_COVERAGE "Enable coverage instrumentation for engine targets" OFF)
+option(GAMEENGINE_COVERAGE_INSTRUMENT_TESTS "Instrument unit tests during coverage builds (improves header/inlined engine coverage)" ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -210,6 +212,13 @@ target_include_directories(GameEngine
     $<INSTALL_INTERFACE:include/GameEngine/physics>
     $<INSTALL_INTERFACE:include>
 )
+
+# Coverage (apply only to engine targets; tests remain non-instrumented)
+if(GAMEENGINE_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(GameEngine PRIVATE --coverage)
+    # Link options matter for shared builds (static libs don't link), but harmless otherwise.
+    target_link_options(GameEngine PRIVATE --coverage)
+endif()
 
 # nlohmann/json is header-only; include it directly to avoid export/install dependency issues.
 target_include_directories(GameEngine PRIVATE $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>)

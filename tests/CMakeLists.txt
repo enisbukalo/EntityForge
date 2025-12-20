@@ -47,10 +47,18 @@ target_link_libraries(unit_tests PRIVATE
     ImGui-SFML
 )
 
-# When coverage flags are enabled, link with gcov to resolve coverage symbols
-# from dependencies that may have been built with coverage instrumentation.
-if(CMAKE_CXX_FLAGS MATCHES "--coverage" OR CMAKE_C_FLAGS MATCHES "--coverage")
-    target_link_libraries(unit_tests PRIVATE gcov)
+# When engine coverage is enabled, unit_tests must link the coverage runtime
+# and (optionally) be instrumented so header/inlined engine logic executed from
+# tests is attributed correctly to engine headers.
+if(GAMEENGINE_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if(GAMEENGINE_COVERAGE_INSTRUMENT_TESTS)
+        target_compile_options(unit_tests PRIVATE --coverage)
+    endif()
+
+    target_link_options(unit_tests PRIVATE --coverage)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_link_libraries(unit_tests PRIVATE gcov)
+    endif()
 endif()
 
 # Link Windows-specific libraries only when building for Windows
