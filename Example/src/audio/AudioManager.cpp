@@ -10,8 +10,8 @@ namespace Example
 
 Entity spawnAudioManager(World& world)
 {
-    Entity audioManager = world.createEntity();
-    Components::CNativeScript* script = world.components().add<Components::CNativeScript>(audioManager);
+    Entity                     audioManager = world.createEntity();
+    Components::CNativeScript* script       = world.components().add<Components::CNativeScript>(audioManager);
     script->bind<AudioManagerBehaviour>();
     return audioManager;
 }

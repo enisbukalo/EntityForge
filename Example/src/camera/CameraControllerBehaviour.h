@@ -32,7 +32,7 @@ public:
 private:
     static void bindCameraActions(Components::CInputController& input);
 
-    Entity findCameraEntity(World& world) const;
+    Entity                   findCameraEntity(World& world) const;
     std::vector<std::string> collectEnabledCameraNames(World& world) const;
 
     std::string m_targetCameraName;

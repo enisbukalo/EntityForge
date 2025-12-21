@@ -17,7 +17,10 @@ namespace Example
 
 CameraControllerBehaviour::CameraControllerBehaviour() : m_targetCameraName("Main") {}
 
-CameraControllerBehaviour::CameraControllerBehaviour(std::string_view targetCameraName) : m_targetCameraName(targetCameraName) {}
+CameraControllerBehaviour::CameraControllerBehaviour(std::string_view targetCameraName)
+    : m_targetCameraName(targetCameraName)
+{
+}
 
 void CameraControllerBehaviour::onCreate(Entity self, World& world)
 {
