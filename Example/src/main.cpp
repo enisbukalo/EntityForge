@@ -13,10 +13,15 @@
 #include <iostream>
 
 #include "AudioManager.h"
+#include "AudioManagerBehaviour.h"
 #include "Barrel.h"
+#include "BarrelBehaviour.h"
 #include "BarrelSpawner.h"
+#include "BarrelSpawnerBehaviour.h"
 #include "Boat.h"
+#include "BoatBehaviour.h"
 #include "CameraController.h"
+#include "CameraControllerBehaviour.h"
 #include "MainCamera.h"
 
 using namespace Systems;
@@ -37,27 +42,11 @@ static void registerExampleScriptTypes()
 {
     auto& registry = Serialization::ScriptTypeRegistry::instance();
 
-    (void)registry.registerScript<Example::AudioManager>(Example::AudioManager::kScriptName);
-    (void)registry.registerScript<Example::BarrelSpawner>(Example::BarrelSpawner::kScriptName);
-    (void)registry.registerScript<Example::Boat>(Example::Boat::kScriptName);
-    (void)registry.registerScript<Example::CameraController>(Example::CameraController::kScriptName);
-    (void)registry.registerScript<Example::BarrelScript>(Example::BarrelScript::kScriptName);
-}
-
-static Entity createAudioManager(World& world)
-{
-    Entity                     audioManager = world.createEntity();
-    Components::CNativeScript* script       = world.components().add<Components::CNativeScript>(audioManager);
-    script->bind<Example::AudioManager>();
-    return audioManager;
-}
-
-static Entity createBarrelSpawner(World& world)
-{
-    Entity                     spawner = world.createEntity();
-    Components::CNativeScript* script  = world.components().add<Components::CNativeScript>(spawner);
-    script->bind<Example::BarrelSpawner>(-PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
-    return spawner;
+    (void)registry.registerScript<Example::AudioManagerBehaviour>(Example::AudioManagerBehaviour::kScriptName);
+    (void)registry.registerScript<Example::BarrelSpawnerBehaviour>(Example::BarrelSpawnerBehaviour::kScriptName);
+    (void)registry.registerScript<Example::BoatBehaviour>(Example::BoatBehaviour::kScriptName);
+    (void)registry.registerScript<Example::CameraControllerBehaviour>(Example::CameraControllerBehaviour::kScriptName);
+    (void)registry.registerScript<Example::BarrelBehaviour>(Example::BarrelBehaviour::kScriptName);
 }
 
 int main()
@@ -105,11 +94,11 @@ int main()
         LOG_INFO_CONSOLE("Creating entities...");
 
         World& world = engine.world();
-        (void)createAudioManager(world);
+        (void)Example::spawnAudioManager(world);
         const Entity boat = Example::spawnBoat(world);
         (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
         (void)Example::spawnCameraController(world, "Main");
-        (void)createBarrelSpawner(world);
+        (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
 
         // Save/load demo + mouse picking demo.
         // Save files resolve to: <exe_dir>/saved_games/<slot>.json

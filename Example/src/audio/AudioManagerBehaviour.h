@@ -6,7 +6,7 @@
 namespace Example
 {
 
-class AudioManager final : public Components::INativeScript, public Components::ISerializableScript
+class AudioManagerBehaviour final : public Components::INativeScript, public Components::ISerializableScript
 {
 public:
     static constexpr const char* kScriptName = "AudioManager";
@@ -20,7 +20,6 @@ public:
 private:
     void adjustMasterVolume(float delta);
 
-    // Match the pre-refactor Example defaults (from master branch).
     static constexpr float kInitialMasterVolume = 0.15f;
     static constexpr float kMusicVolume         = 0.80f;
     static constexpr float kVolumeStep          = 0.05f;

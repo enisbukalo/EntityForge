@@ -28,11 +28,23 @@ endif()
 find_package(GameEngine REQUIRED)
 
 # Glob source files
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-file(GLOB_RECURSE HEADERS "src/*.h")
+# Use CONFIGURE_DEPENDS so CMake regenerates when files are added/removed.
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/*.h")
 
 # Create executable
 add_executable(FishingGame ${SOURCES} ${HEADERS})
+
+# Allow simple includes like "Boat.h" even when files are organized into src/* subfolders.
+# This avoids forcing `#include "boat/Boat.h"` style includes.
+set(EXAMPLE_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/src")
+file(GLOB _EXAMPLE_SRC_CHILDREN CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*")
+foreach(_child ${_EXAMPLE_SRC_CHILDREN})
+    if(IS_DIRECTORY "${_child}")
+        list(APPEND EXAMPLE_INCLUDE_DIRS "${_child}")
+    endif()
+endforeach()
+target_include_directories(FishingGame PRIVATE ${EXAMPLE_INCLUDE_DIRS})
 
 # Link against GameEngine and its dependencies
 target_link_libraries(FishingGame

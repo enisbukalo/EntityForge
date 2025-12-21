@@ -1,12 +1,9 @@
 #include "Barrel.h"
 
-#include <algorithm>
-#include <cmath>
+#include "BarrelBehaviour.h"
 
 #include <Color.h>
 #include <Components.h>
-#include <S2DPhysics.h>
-#include <SystemLocator.h>
 #include <World.h>
 
 namespace Example
@@ -21,11 +18,6 @@ constexpr float kBarrelColliderRestitution = 0.0f;
 constexpr float kBarrelLinearDamping       = 1.5f;
 constexpr float kBarrelAngularDamping      = 2.0f;
 constexpr float kBarrelGravityScale        = 1.0f;
-constexpr float kMinSpraySpeed             = 0.05f;
-constexpr float kMaxSpraySpeed             = 0.75f;
-constexpr float kMaxEmissionRate           = 1250.0f;
-constexpr float kMinSpeed                  = 0.05f;
-constexpr float kMaxSpeed                  = 0.75f;
 constexpr int   kBarrelZIndex              = 10;
 constexpr int   kBarrelSprayZIndex         = 9;
 
@@ -34,8 +26,8 @@ Components::CParticleEmitter makeBarrelSprayEmitter()
     Components::CParticleEmitter e;
     e.setDirection(Vec2(0.0f, 1.0f));
     e.setSpreadAngle(0.5f);
-    e.setMinSpeed(kMinSpeed);
-    e.setMaxSpeed(kMaxSpeed);
+    e.setMinSpeed(0.05f);
+    e.setMaxSpeed(0.75f);
     e.setMinLifetime(0.5f);
     e.setMaxLifetime(2.0f);
     e.setMinSize(0.006f);
@@ -65,39 +57,6 @@ Components::CParticleEmitter makeBarrelSprayEmitter()
 
 }  // namespace
 
-void BarrelScript::onCreate(Entity /*self*/, World& /*world*/) {}
-
-void BarrelScript::onUpdate(float /*deltaTime*/, Entity self, World& world)
-{
-    Components::CParticleEmitter* emitter = world.components().tryGet<Components::CParticleEmitter>(self);
-    if (!emitter)
-    {
-        return;
-    }
-
-    const b2Vec2 vel   = Systems::SystemLocator::physics().getLinearVelocity(self);
-    const float  speed = std::sqrt((vel.x * vel.x) + (vel.y * vel.y));
-
-    const float MIN_SPEED_FOR_SPRAY = kMinSpraySpeed;
-    const float MAX_SPEED_FOR_SPRAY = kMaxSpraySpeed;
-    const float MIN_EMISSION_RATE   = 0.0f;
-    const float MAX_EMISSION_RATE   = kMaxEmissionRate;
-
-    float emissionRate = 0.0f;
-    if (speed > MIN_SPEED_FOR_SPRAY)
-    {
-        float normalizedSpeed = (speed - MIN_SPEED_FOR_SPRAY) / (MAX_SPEED_FOR_SPRAY - MIN_SPEED_FOR_SPRAY);
-        normalizedSpeed       = std::min(1.0f, std::max(0.0f, normalizedSpeed));
-        emissionRate = MIN_EMISSION_RATE + (MAX_EMISSION_RATE - MIN_EMISSION_RATE) * (normalizedSpeed * normalizedSpeed);
-
-        float speedMultiplier = kMaxSpeed + (normalizedSpeed * kMaxSpeed);
-        emitter->setMinSpeed(kMinSpeed * speedMultiplier);
-        emitter->setMaxSpeed(kMaxSpeed * speedMultiplier);
-    }
-
-    emitter->setEmissionRate(emissionRate);
-}
-
 Entity spawnBarrel(World& world, const Vec2& position)
 {
     Entity barrel = world.createEntity();
@@ -124,7 +83,7 @@ Entity spawnBarrel(World& world, const Vec2& position)
     world.components().add<Components::CParticleEmitter>(barrel, makeBarrelSprayEmitter());
 
     Components::CNativeScript* script = world.components().add<Components::CNativeScript>(barrel);
-    script->bind<BarrelScript>();
+    script->bind<BarrelBehaviour>();
 
     return barrel;
 }

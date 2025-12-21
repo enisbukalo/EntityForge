@@ -1,4 +1,4 @@
-#include "BarrelSpawner.h"
+#include "BarrelSpawnerBehaviour.h"
 
 #include "Barrel.h"
 
@@ -6,13 +6,12 @@
 #include <cstdint>
 
 #include <Logger.h>
-
 #include <World.h>
 
 namespace Example
 {
 
-BarrelSpawner::BarrelSpawner()
+BarrelSpawnerBehaviour::BarrelSpawnerBehaviour()
     : m_minX(0.0f),
       m_maxX(0.0f),
       m_minY(0.0f),
@@ -25,7 +24,7 @@ BarrelSpawner::BarrelSpawner()
 {
 }
 
-BarrelSpawner::BarrelSpawner(float minX, float maxX, float minY, float maxY, size_t count)
+BarrelSpawnerBehaviour::BarrelSpawnerBehaviour(float minX, float maxX, float minY, float maxY, size_t count)
     : m_minX(minX),
       m_maxX(maxX),
       m_minY(minY),
@@ -38,9 +37,8 @@ BarrelSpawner::BarrelSpawner(float minX, float maxX, float minY, float maxY, siz
 {
 }
 
-void BarrelSpawner::onCreate(Entity /*self*/, World& world)
+void BarrelSpawnerBehaviour::onCreate(Entity /*self*/, World& world)
 {
-    // If this spawner was loaded from a save, we don't want to duplicate already-saved barrels.
     if (m_hasSpawned)
     {
         return;
@@ -65,9 +63,9 @@ void BarrelSpawner::onCreate(Entity /*self*/, World& world)
     m_hasSpawned = true;
 }
 
-void BarrelSpawner::onUpdate(float /*deltaTime*/, Entity /*self*/, World& /*world*/) {}
+void BarrelSpawnerBehaviour::onUpdate(float /*deltaTime*/, Entity /*self*/, World& /*world*/) {}
 
-void BarrelSpawner::serializeFields(Serialization::ScriptFieldWriter& out) const
+void BarrelSpawnerBehaviour::serializeFields(Serialization::ScriptFieldWriter& out) const
 {
     out.setFloat("minX", static_cast<double>(m_minX));
     out.setFloat("maxX", static_cast<double>(m_maxX));
@@ -77,7 +75,7 @@ void BarrelSpawner::serializeFields(Serialization::ScriptFieldWriter& out) const
     out.setBool("hasSpawned", m_hasSpawned);
 }
 
-void BarrelSpawner::deserializeFields(const Serialization::ScriptFieldReader& in)
+void BarrelSpawnerBehaviour::deserializeFields(const Serialization::ScriptFieldReader& in)
 {
     if (auto v = in.getFloat("minX"))
         m_minX = static_cast<float>(*v);
@@ -98,9 +96,8 @@ void BarrelSpawner::deserializeFields(const Serialization::ScriptFieldReader& in
     rebuildDistributions();
 }
 
-void BarrelSpawner::rebuildDistributions()
+void BarrelSpawnerBehaviour::rebuildDistributions()
 {
-    // Avoid undefined behavior if the ranges are inverted.
     const float loX = std::min(m_minX, m_maxX);
     const float hiX = std::max(m_minX, m_maxX);
     const float loY = std::min(m_minY, m_maxY);

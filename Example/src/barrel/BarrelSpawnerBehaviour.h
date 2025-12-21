@@ -5,18 +5,17 @@
 
 #include <Components.h>
 #include <ISerializableScript.h>
-#include <Vec2.h>
 
 namespace Example
 {
 
-class BarrelSpawner final : public Components::INativeScript, public Components::ISerializableScript
+class BarrelSpawnerBehaviour final : public Components::INativeScript, public Components::ISerializableScript
 {
 public:
     static constexpr const char* kScriptName = "BarrelSpawner";
 
-    BarrelSpawner();
-    BarrelSpawner(float minX, float maxX, float minY, float maxY, size_t count);
+    BarrelSpawnerBehaviour();
+    BarrelSpawnerBehaviour(float minX, float maxX, float minY, float maxY, size_t count);
 
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;

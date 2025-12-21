@@ -1,9 +1,7 @@
-#include "CameraController.h"
+#include "CameraControllerBehaviour.h"
 
 #include <algorithm>
 #include <cmath>
-#include <string>
-#include <vector>
 
 #include <ActionBinding.h>
 #include <Components.h>
@@ -17,23 +15,12 @@
 namespace Example
 {
 
-Entity spawnCameraController(World& world, std::string_view targetCameraName)
+CameraControllerBehaviour::CameraControllerBehaviour() : m_targetCameraName("Main") {}
+
+CameraControllerBehaviour::CameraControllerBehaviour(std::string_view targetCameraName) : m_targetCameraName(targetCameraName) {}
+
+void CameraControllerBehaviour::onCreate(Entity self, World& world)
 {
-    Entity controller = world.createEntity();
-
-    Components::CNativeScript* script = world.components().add<Components::CNativeScript>(controller);
-    script->bind<CameraController>(targetCameraName);
-
-    return controller;
-}
-
-CameraController::CameraController() : m_targetCameraName("Main") {}
-
-CameraController::CameraController(std::string_view targetCameraName) : m_targetCameraName(targetCameraName) {}
-
-void CameraController::onCreate(Entity self, World& world)
-{
-    // Add input controller component for action bindings
     Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
@@ -41,7 +28,6 @@ void CameraController::onCreate(Entity self, World& world)
     }
     bindCameraActions(*input);
 
-    // Subscribe to raw input events for scroll wheel
     m_subscriberId = Systems::SystemLocator::input().subscribe(
         [this](const InputEvent& event)
         {
@@ -54,16 +40,14 @@ void CameraController::onCreate(Entity self, World& world)
     LOG_INFO_CONSOLE("CameraController: Created, targeting camera '{}'", m_targetCameraName);
 }
 
-void CameraController::onUpdate(float deltaTime, Entity self, World& world)
+void CameraControllerBehaviour::onUpdate(float deltaTime, Entity self, World& world)
 {
-    // Get our input controller
     Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         return;
     }
 
-    // Find the camera entity we're controlling
     Entity cameraEntity = findCameraEntity(world);
     if (!cameraEntity.isValid())
     {
@@ -76,7 +60,6 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
         return;
     }
 
-    // --- Zoom controls ---
     float zoomChange = 0.0f;
 
     if (input->isActionActive("CameraZoomIn"))
@@ -88,14 +71,12 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
         zoomChange += m_zoomSpeed * deltaTime;
     }
 
-    // Apply scroll wheel zoom (scroll up = zoom in = decrease zoom value)
     zoomChange += m_scrollDelta * m_scrollZoomSpeed;
     m_scrollDelta = 0.0f;
 
     camera->zoom += zoomChange;
     camera->zoom = std::clamp(camera->zoom, kMinZoom, kMaxZoom);
 
-    // --- Rotation controls ---
     float rotateChange = 0.0f;
 
     if (input->isActionActive("CameraRotateLeft"))
@@ -109,7 +90,6 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
 
     camera->rotationRadians += rotateChange;
 
-    // Wrap rotation to [0, 2π)
     constexpr float kTwoPi = 2.0f * 3.14159265358979323846f;
     while (camera->rotationRadians < 0.0f)
     {
@@ -120,7 +100,6 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
         camera->rotationRadians -= kTwoPi;
     }
 
-    // --- Camera switching ---
     const bool nextPressed = input->actionStates.count("CameraNext") && input->actionStates.at("CameraNext") == ActionState::Pressed;
     const bool prevPressed = input->actionStates.count("CameraPrev") && input->actionStates.at("CameraPrev") == ActionState::Pressed;
 
@@ -129,7 +108,6 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
         auto cameraNames = collectEnabledCameraNames(world);
         if (cameraNames.size() > 1)
         {
-            // Find current camera's index
             auto it = std::find(cameraNames.begin(), cameraNames.end(), m_targetCameraName);
             if (it != cameraNames.end())
             {
@@ -153,9 +131,8 @@ void CameraController::onUpdate(float deltaTime, Entity self, World& world)
     }
 }
 
-CameraController::~CameraController()
+CameraControllerBehaviour::~CameraControllerBehaviour()
 {
-    // Unsubscribe from input events
     if (m_subscriberId != 0)
     {
         Systems::SystemLocator::input().unsubscribe(m_subscriberId);
@@ -163,12 +140,12 @@ CameraController::~CameraController()
     }
 }
 
-void CameraController::serializeFields(Serialization::ScriptFieldWriter& out) const
+void CameraControllerBehaviour::serializeFields(Serialization::ScriptFieldWriter& out) const
 {
     out.setString("targetCameraName", m_targetCameraName);
 }
 
-void CameraController::deserializeFields(const Serialization::ScriptFieldReader& in)
+void CameraControllerBehaviour::deserializeFields(const Serialization::ScriptFieldReader& in)
 {
     if (auto v = in.getString("targetCameraName"))
     {
@@ -176,9 +153,8 @@ void CameraController::deserializeFields(const Serialization::ScriptFieldReader&
     }
 }
 
-void CameraController::bindCameraActions(Components::CInputController& input)
+void CameraControllerBehaviour::bindCameraActions(Components::CInputController& input)
 {
-    // Zoom In: = (Equal) and Numpad +
     {
         ActionBinding b;
         b.keys    = {KeyCode::Equal, KeyCode::Add};
@@ -186,7 +162,6 @@ void CameraController::bindCameraActions(Components::CInputController& input)
         input.bindings["CameraZoomIn"].push_back({b, 0});
     }
 
-    // Zoom Out: - (Minus) and Numpad -
     {
         ActionBinding b;
         b.keys    = {KeyCode::Hyphen, KeyCode::Subtract};
@@ -194,7 +169,6 @@ void CameraController::bindCameraActions(Components::CInputController& input)
         input.bindings["CameraZoomOut"].push_back({b, 0});
     }
 
-    // Rotate Left: Q
     {
         ActionBinding b;
         b.keys    = {KeyCode::Q};
@@ -202,7 +176,6 @@ void CameraController::bindCameraActions(Components::CInputController& input)
         input.bindings["CameraRotateLeft"].push_back({b, 0});
     }
 
-    // Rotate Right: E
     {
         ActionBinding b;
         b.keys    = {KeyCode::E};
@@ -210,7 +183,6 @@ void CameraController::bindCameraActions(Components::CInputController& input)
         input.bindings["CameraRotateRight"].push_back({b, 0});
     }
 
-    // Next Camera: N
     {
         ActionBinding b;
         b.keys    = {KeyCode::N};
@@ -218,7 +190,6 @@ void CameraController::bindCameraActions(Components::CInputController& input)
         input.bindings["CameraNext"].push_back({b, 0});
     }
 
-    // Previous Camera: P
     {
         ActionBinding b;
         b.keys    = {KeyCode::P};
@@ -227,7 +198,7 @@ void CameraController::bindCameraActions(Components::CInputController& input)
     }
 }
 
-Entity CameraController::findCameraEntity(World& world) const
+Entity CameraControllerBehaviour::findCameraEntity(World& world) const
 {
     Entity result = Entity::null();
 
@@ -243,7 +214,7 @@ Entity CameraController::findCameraEntity(World& world) const
     return result;
 }
 
-std::vector<std::string> CameraController::collectEnabledCameraNames(World& world) const
+std::vector<std::string> CameraControllerBehaviour::collectEnabledCameraNames(World& world) const
 {
     std::vector<std::string> names;
 
@@ -256,7 +227,6 @@ std::vector<std::string> CameraController::collectEnabledCameraNames(World& worl
             }
         });
 
-    // Sort for deterministic ordering
     std::sort(names.begin(), names.end());
     return names;
 }
