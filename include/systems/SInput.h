@@ -65,8 +65,10 @@ public:
 
     void update(float deltaTime, World& world) override;
 
+    [[deprecated("Prefer World::events().subscribe<InputEvent>(...) and staged delivery via EventBus::pump().")]]
     ListenerId subscribe(std::function<void(const InputEvent&)> cb);
-    void       unsubscribe(ListenerId id);
+    [[deprecated("Prefer World::events().unsubscribe(token) by moving to EventBus subscriptions.")]]
+    void unsubscribe(ListenerId id);
 
     void addListener(IInputListener* listener);
     void removeListener(IInputListener* listener);

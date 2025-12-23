@@ -169,6 +169,8 @@ private:
 
     Vec2 m_gravity;  ///< Global gravity vector
 
+    ScopedSubscription m_windowCloseSubscription;
+
     /**
      * @brief Registers all component types with stable names for serialization
      */

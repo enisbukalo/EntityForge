@@ -2,6 +2,7 @@
 
 #include <Color.h>
 #include <Components.h>
+#include <InputEvents.h>
 #include <Logger.h>
 #include <SaveGame.h>
 #include <ScriptTypeRegistry.h>
@@ -103,41 +104,45 @@ int main()
         // Save/load demo + mouse picking demo.
         // Save files resolve to: <exe_dir>/saved_games/<slot>.json
         LOG_INFO_CONSOLE("Save/Load: F5 = Save, F9 = Load (slot 'main_scene')");
-        (void)engine.getInputManager().subscribe(
-            [&](const InputEvent& inputEvent)
-            {
-                if (inputEvent.type == InputEventType::KeyPressed && !inputEvent.key.repeat)
+        ScopedSubscription saveLoadSub(
+            world.events(),
+            world.events().subscribe<InputEvent>(
+                [&](const InputEvent& inputEvent, World& eventWorld)
                 {
-                    if (inputEvent.key.key == KeyCode::F5)
+                    if (inputEvent.type == InputEventType::KeyPressed && !inputEvent.key.repeat)
                     {
-                        const bool ok = Systems::SaveGame::saveWorld(world, "main_scene");
-                        LOG_INFO_CONSOLE("SaveGame: {}", ok ? "saved" : "save FAILED");
+                        if (inputEvent.key.key == KeyCode::F5)
+                        {
+                            const bool ok = Systems::SaveGame::saveWorld(eventWorld, "main_scene");
+                            LOG_INFO_CONSOLE("SaveGame: {}", ok ? "saved" : "save FAILED");
+                            return;
+                        }
+                        if (inputEvent.key.key == KeyCode::F9)
+                        {
+                            const bool ok = Systems::SaveGame::loadWorld(eventWorld, "main_scene", Systems::LoadMode::ReplaceWorld);
+                            LOG_INFO_CONSOLE("SaveGame: {}", ok ? "loaded" : "load FAILED");
+                            return;
+                        }
+                    }
+
+                    if (inputEvent.type != InputEventType::MouseButtonPressed)
+                    {
                         return;
                     }
-                    if (inputEvent.key.key == KeyCode::F9)
+                    if (inputEvent.mouse.button != MouseButton::Left)
                     {
-                        const bool ok = Systems::SaveGame::loadWorld(world, "main_scene", Systems::LoadMode::ReplaceWorld);
-                        LOG_INFO_CONSOLE("SaveGame: {}", ok ? "loaded" : "load FAILED");
                         return;
                     }
-                }
 
-                if (inputEvent.type != InputEventType::MouseButtonPressed)
-                {
-                    return;
-                }
-                if (inputEvent.mouse.button != MouseButton::Left)
-                {
-                    return;
-                }
-
-                const Vec2 worldPos = Systems::SystemLocator::camera().screenToWorld(world, "", inputEvent.mouse.position);
-                LOG_INFO_CONSOLE("Click px=({}, {}) -> world=({}, {})",
-                                 inputEvent.mouse.position.x,
-                                 inputEvent.mouse.position.y,
-                                 worldPos.x,
-                                 worldPos.y);
-            });
+                    const Vec2 worldPos = Systems::SystemLocator::camera().screenToWorld(eventWorld,
+                                                                                         "",
+                                                                                         inputEvent.mouse.position);
+                    LOG_INFO_CONSOLE("Click px=({}, {}) -> world=({}, {})",
+                                     inputEvent.mouse.position.x,
+                                     inputEvent.mouse.position.y,
+                                     worldPos.x,
+                                     worldPos.y);
+                }));
 
         LOG_INFO_CONSOLE("Game initialized!");
         LOG_INFO_CONSOLE("Physics: Box2D v3.1.1 (1 unit = 1 meter, Y-up)");

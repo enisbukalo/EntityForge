@@ -41,18 +41,6 @@ public:
     }
 
     virtual void onUpdate(float deltaTime, Entity self, World& world) = 0;
-};
-
-/**
- * @brief Optional base class for scripts that want to subscribe to the global EventBus.
- *
- * Store subscriptions via subscribe(...); they will be automatically unsubscribed when
- * the script instance is destroyed.
- */
-class EventAwareScript : public INativeScript
-{
-public:
-    ~EventAwareScript() override = default;
 
 protected:
     template <typename Event, typename Func>
@@ -68,6 +56,18 @@ protected:
 
 private:
     std::vector<::ScopedSubscription> m_subscriptions;
+};
+
+/**
+ * @brief Optional base class for scripts that want to subscribe to the global EventBus.
+ *
+ * Store subscriptions via subscribe(...); they will be automatically unsubscribed when
+ * the script instance is destroyed.
+ */
+class EventAwareScript : public INativeScript
+{
+public:
+    ~EventAwareScript() override = default;
 };
 
 struct CNativeScript

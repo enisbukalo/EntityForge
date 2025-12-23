@@ -66,19 +66,20 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // The engine does not initialize ImGui, so default to not forwarding
     // events to ImGui to avoid undefined behavior.
     m_input->initialize(m_renderer->getWindow(), false);
-    m_input->subscribe(
-        [this](const InputEvent& ev)
-        {
-            if (ev.type == InputEventType::WindowClosed)
-            {
-                auto* window = m_renderer->getWindow();
-                if (window)
-                {
-                    window->close();
-                }
-                m_gameRunning = false;
-            }
-        });
+    m_windowCloseSubscription = ScopedSubscription(m_world.events(),
+                                                   m_world.events().subscribe<InputEvent>(
+                                                       [this](const InputEvent& ev, World& /*world*/)
+                                                       {
+                                                           if (ev.type == InputEventType::WindowClosed)
+                                                           {
+                                                               auto* window = m_renderer->getWindow();
+                                                               if (window)
+                                                               {
+                                                                   window->close();
+                                                               }
+                                                               m_gameRunning = false;
+                                                           }
+                                                       }));
 
     // Initialize audio system
     m_audio->initialize();

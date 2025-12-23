@@ -12,7 +12,7 @@ struct PingEvent
     int delta = 0;
 };
 
-class PingListenerScript final : public Components::EventAwareScript
+class PingListenerScript final : public Components::INativeScript
 {
 public:
     explicit PingListenerScript(int* counter) : m_counter(counter) {}
