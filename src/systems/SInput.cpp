@@ -229,6 +229,57 @@ void SInput::unbindAction(const std::string& actionName)
     m_actionStates.erase(actionName);
 }
 
+void SInput::dispatch(World& world, const InputEvent& inputEvent)
+{
+    for (const auto& kv : m_subscribers)
+    {
+        try
+        {
+            kv.second(inputEvent);
+        }
+        catch (...)
+        {
+        }
+    }
+
+    for (auto* l : m_listenerPointers)
+    {
+        if (!l)
+            continue;
+        switch (inputEvent.type)
+        {
+            case InputEventType::KeyPressed:
+                l->onKeyPressed(inputEvent.key);
+                break;
+            case InputEventType::KeyReleased:
+                l->onKeyReleased(inputEvent.key);
+                break;
+            case InputEventType::MouseButtonPressed:
+                l->onMousePressed(inputEvent.mouse);
+                break;
+            case InputEventType::MouseButtonReleased:
+                l->onMouseReleased(inputEvent.mouse);
+                break;
+            case InputEventType::MouseMoved:
+                l->onMouseMoved(inputEvent.mouseMove);
+                break;
+            case InputEventType::TextEntered:
+                l->onTextEntered(inputEvent.text);
+                break;
+            case InputEventType::WindowClosed:
+            case InputEventType::WindowResized:
+                l->onWindowEvent(inputEvent.window);
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Phase 4: bridge SInput into the global event bus.
+    // Delivery remains staged and deterministic via GameEngine pump points.
+    world.events().emit<InputEvent>(inputEvent);
+}
+
 void SInput::update(float /*deltaTime*/, World& world)
 {
     // Clear transient states (pressed/released) at start of update
@@ -255,52 +306,7 @@ void SInput::update(float /*deltaTime*/, World& world)
         return ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
     };
 
-    auto dispatch = [&](const InputEvent& inputEvent)
-    {
-        for (const auto& kv : m_subscribers)
-        {
-            try
-            {
-                kv.second(inputEvent);
-            }
-            catch (...)
-            {
-            }
-        }
-
-        for (auto* l : m_listenerPointers)
-        {
-            if (!l)
-                continue;
-            switch (inputEvent.type)
-            {
-                case InputEventType::KeyPressed:
-                    l->onKeyPressed(inputEvent.key);
-                    break;
-                case InputEventType::KeyReleased:
-                    l->onKeyReleased(inputEvent.key);
-                    break;
-                case InputEventType::MouseButtonPressed:
-                    l->onMousePressed(inputEvent.mouse);
-                    break;
-                case InputEventType::MouseButtonReleased:
-                    l->onMouseReleased(inputEvent.mouse);
-                    break;
-                case InputEventType::MouseMoved:
-                    l->onMouseMoved(inputEvent.mouseMove);
-                    break;
-                case InputEventType::TextEntered:
-                    l->onTextEntered(inputEvent.text);
-                    break;
-                case InputEventType::WindowClosed:
-                case InputEventType::WindowResized:
-                    l->onWindowEvent(inputEvent.window);
-                    break;
-                default:
-                    break;
-            }
-        }
-    };
+    auto dispatchEvent = [&](const InputEvent& inputEvent) { dispatch(world, inputEvent); };
 
     // Pump events (SFML 3 typed handlers)
     m_window->handleEvents(
@@ -312,7 +318,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             InputEvent inputEvent{};
             inputEvent.type   = InputEventType::WindowClosed;
             inputEvent.window = WindowEvent{};
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::Resized& e)
         {
@@ -325,7 +331,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             we.height         = e.size.y;
             inputEvent.type   = InputEventType::WindowResized;
             inputEvent.window = we;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::KeyPressed& e)
         {
@@ -355,7 +361,7 @@ void SInput::update(float /*deltaTime*/, World& world)
                 m_keyPressed[ke.key] = true;
             }
 
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::KeyReleased& e)
         {
@@ -377,7 +383,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             m_keyReleased[ke.key] = true;
             m_keyRepeat.erase(ke.key);
 
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::MouseMoved& e)
         {
@@ -390,7 +396,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             inputEvent.type      = InputEventType::MouseMoved;
             inputEvent.mouseMove = mm;
             m_mousePosition      = mm.position;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::MouseButtonPressed& e)
         {
@@ -407,7 +413,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             m_mouseDown[me.button]    = true;
             m_mousePressed[me.button] = true;
             m_mousePosition           = me.position;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::MouseButtonReleased& e)
         {
@@ -424,7 +430,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             m_mouseDown[me.button]     = false;
             m_mouseReleased[me.button] = true;
             m_mousePosition            = me.position;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::MouseWheelScrolled& e)
         {
@@ -437,7 +443,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             we.position      = Vec2i{e.position.x, e.position.y};
             inputEvent.type  = InputEventType::MouseWheel;
             inputEvent.wheel = we;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         },
         [&](const sf::Event::TextEntered& e)
         {
@@ -449,7 +455,7 @@ void SInput::update(float /*deltaTime*/, World& world)
             te.unicode      = e.unicode;
             inputEvent.type = InputEventType::TextEntered;
             inputEvent.text = te;
-            dispatch(inputEvent);
+            dispatchEvent(inputEvent);
         });
 
     // Ensure controller bindings are registered before evaluating action states

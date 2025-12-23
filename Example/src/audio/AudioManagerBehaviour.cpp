@@ -53,7 +53,7 @@ void AudioManagerBehaviour::onCreate(Entity self, World& world)
 
 void AudioManagerBehaviour::onUpdate(float /*deltaTime*/, Entity self, World& world)
 {
-    Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
+    const Components::CInputController* input = world.components().tryGet<Components::CInputController>(self);
     if (!input)
     {
         return;

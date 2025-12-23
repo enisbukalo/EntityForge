@@ -188,6 +188,10 @@ void GameEngine::update(float deltaTime)
     }
     runStage(Systems::UpdateStage::PreFlush);
 
+    // Pump events immediately before the flush point so handlers can queue structural changes
+    // that will become visible when the command buffer is flushed.
+    m_world.events().pump(EventStage::PreFlush, m_world);
+
     // Apply deferred structural commands after pre-flush systems have finished updating to avoid iterator invalidation
     if (s_frameIndex < 3)
     {
@@ -201,6 +205,9 @@ void GameEngine::update(float deltaTime)
     }
 
     runStage(Systems::UpdateStage::PostFlush);
+
+    // Pump any events emitted during PostFlush at a deterministic end-of-update point.
+    m_world.events().pump(EventStage::PostFlush, m_world);
 
     if (s_frameIndex < 3)
     {

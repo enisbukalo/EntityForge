@@ -2,10 +2,12 @@
 #define CNATIVESCRIPT_H
 
 #include <Entity.h>
+#include <EventBus.h>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 class World;
 
@@ -39,6 +41,33 @@ public:
     }
 
     virtual void onUpdate(float deltaTime, Entity self, World& world) = 0;
+};
+
+/**
+ * @brief Optional base class for scripts that want to subscribe to the global EventBus.
+ *
+ * Store subscriptions via subscribe(...); they will be automatically unsubscribed when
+ * the script instance is destroyed.
+ */
+class EventAwareScript : public INativeScript
+{
+public:
+    ~EventAwareScript() override = default;
+
+protected:
+    template <typename Event, typename Func>
+    void subscribe(::EventBus& bus, Func&& handler)
+    {
+        m_subscriptions.emplace_back(bus, bus.subscribe<Event>(std::forward<Func>(handler)));
+    }
+
+    void unsubscribeAll() noexcept
+    {
+        m_subscriptions.clear();
+    }
+
+private:
+    std::vector<::ScopedSubscription> m_subscriptions;
 };
 
 struct CNativeScript

@@ -48,6 +48,8 @@ private:
     void        registerControllerBindings(World& world);
     void        updateControllerStates(World& world);
 
+    void dispatch(World& world, const InputEvent& inputEvent);
+
 public:
     SInput();
     ~SInput();
