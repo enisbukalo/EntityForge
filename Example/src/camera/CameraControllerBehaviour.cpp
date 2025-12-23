@@ -8,7 +8,6 @@
 #include <InputEvents.h>
 #include <Logger.h>
 #include <SCamera.h>
-#include <SInput.h>
 #include <SystemLocator.h>
 #include <World.h>
 
@@ -31,14 +30,14 @@ void CameraControllerBehaviour::onCreate(Entity self, World& world)
     }
     bindCameraActions(*input);
 
-    m_subscriberId = Systems::SystemLocator::input().subscribe(
-        [this](const InputEvent& event)
-        {
-            if (event.type == InputEventType::MouseWheel)
-            {
-                m_scrollDelta += event.wheel.delta;
-            }
-        });
+    subscribe<InputEvent>(world.events(),
+                          [this](const InputEvent& event, World& /*eventWorld*/)
+                          {
+                              if (event.type == InputEventType::MouseWheel)
+                              {
+                                  m_scrollDelta += event.wheel.delta;
+                              }
+                          });
 
     LOG_INFO_CONSOLE("CameraController: Created, targeting camera '{}'", m_targetCameraName);
 }
@@ -131,15 +130,6 @@ void CameraControllerBehaviour::onUpdate(float deltaTime, Entity self, World& wo
                 LOG_INFO_CONSOLE("CameraController: Switched to camera '{}'", m_targetCameraName);
             }
         }
-    }
-}
-
-CameraControllerBehaviour::~CameraControllerBehaviour()
-{
-    if (m_subscriberId != 0)
-    {
-        Systems::SystemLocator::input().unsubscribe(m_subscriberId);
-        m_subscriberId = 0;
     }
 }
 

@@ -66,19 +66,20 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // The engine does not initialize ImGui, so default to not forwarding
     // events to ImGui to avoid undefined behavior.
     m_input->initialize(m_renderer->getWindow(), false);
-    m_input->subscribe(
-        [this](const InputEvent& ev)
-        {
-            if (ev.type == InputEventType::WindowClosed)
-            {
-                auto* window = m_renderer->getWindow();
-                if (window)
-                {
-                    window->close();
-                }
-                m_gameRunning = false;
-            }
-        });
+    m_windowCloseSubscription = ScopedSubscription(m_world.events(),
+                                                   m_world.events().subscribe<InputEvent>(
+                                                       [this](const InputEvent& ev, World& /*world*/)
+                                                       {
+                                                           if (ev.type == InputEventType::WindowClosed)
+                                                           {
+                                                               auto* window = m_renderer->getWindow();
+                                                               if (window)
+                                                               {
+                                                                   window->close();
+                                                               }
+                                                               m_gameRunning = false;
+                                                           }
+                                                       }));
 
     // Initialize audio system
     m_audio->initialize();
@@ -188,6 +189,10 @@ void GameEngine::update(float deltaTime)
     }
     runStage(Systems::UpdateStage::PreFlush);
 
+    // Pump events immediately before the flush point so handlers can queue structural changes
+    // that will become visible when the command buffer is flushed.
+    m_world.events().pump(EventStage::PreFlush, m_world);
+
     // Apply deferred structural commands after pre-flush systems have finished updating to avoid iterator invalidation
     if (s_frameIndex < 3)
     {
@@ -201,6 +206,9 @@ void GameEngine::update(float deltaTime)
     }
 
     runStage(Systems::UpdateStage::PostFlush);
+
+    // Pump any events emitted during PostFlush at a deterministic end-of-update point.
+    m_world.events().pump(EventStage::PostFlush, m_world);
 
     if (s_frameIndex < 3)
     {

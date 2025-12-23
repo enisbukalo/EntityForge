@@ -28,6 +28,17 @@ This README is intentionally **high level**; the detailed engine reference lives
   - Rendering (SFML): pixels, **Y-down**.
   - Common scale: **100 pixels = 1 meter**.
 
+## EventBus policy (recommended)
+
+This engine includes a world-owned, staged `EventBus` available via `World::events()`.
+
+- **Prefer `World::events()`** for cross-system notifications and decoupled messaging.
+- **Dispatch is staged**: events are delivered only when the engine calls `EventBus::pump()`.
+  - `EventStage::PreFlush` is pumped immediately before `World::flushCommandBuffer()`.
+  - `EventStage::PostFlush` is pumped at the end of `GameEngine::update()`.
+- **ECS safety rule**: handlers that need structural changes must use `World::queue*` APIs (do not mutate stores during iteration).
+- Legacy per-system subscription APIs (e.g. `Systems::SInput::subscribe`) remain temporarily for compatibility but are considered deprecated.
+
 ## Building
 
 The recommended workflow is Docker (Linux native build + Windows cross-compile).

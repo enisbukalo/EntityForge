@@ -147,7 +147,7 @@ void BoatBehaviour::setupFixedMovement(Entity self, World& world)
 
             auto components = worldPtr->components();
 
-            Components::CInputController* input = components.tryGet<Components::CInputController>(self);
+            const Components::CInputController* input = components.tryGet<Components::CInputController>(self);
             if (!input)
             {
                 return;
@@ -217,7 +217,7 @@ void BoatBehaviour::setupFixedMovement(Entity self, World& world)
             }
 
             // --- Keep particle emitters pinned to the boat transform ---
-            Components::CTransform* boatT = components.tryGet<Components::CTransform>(self);
+            const Components::CTransform* boatT = components.tryGet<Components::CTransform>(self);
             if (!boatT)
             {
                 return;

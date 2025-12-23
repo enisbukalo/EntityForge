@@ -4,6 +4,7 @@
 #include <cassert>
 #include <typeindex>
 
+#include "EventBus.h"
 #include "Registry.h"
 
 /**
@@ -278,6 +279,15 @@ public:
         return ConstComponents(*this);
     }
 
+    EventBus& events()
+    {
+        return m_events;
+    }
+    const EventBus& events() const
+    {
+        return m_events;
+    }
+
     template <typename T, typename... Args>
     T* add(Entity e, Args&&... args)
     {
@@ -469,6 +479,7 @@ public:
     }
 
 private:
+    EventBus m_events;
     Registry m_registry;
 
     void assertAlive(Entity e, const char* action) const

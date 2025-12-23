@@ -21,7 +21,7 @@ public:
 
     CameraControllerBehaviour();
     explicit CameraControllerBehaviour(std::string_view targetCameraName);
-    ~CameraControllerBehaviour() override;
+    ~CameraControllerBehaviour() override = default;
 
     void onCreate(Entity self, World& world) override;
     void onUpdate(float deltaTime, Entity self, World& world) override;
@@ -43,8 +43,7 @@ private:
     static constexpr float kMinZoom = 0.5f;
     static constexpr float kMaxZoom = 10.0f;
 
-    float  m_scrollDelta  = 0.0f;
-    size_t m_subscriberId = 0;
+    float m_scrollDelta = 0.0f;
 };
 
 }  // namespace Example
