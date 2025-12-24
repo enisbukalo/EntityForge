@@ -49,23 +49,18 @@ std::string objectiveStatusToString(Components::ObjectiveStatus status)
 namespace Example
 {
 
-ExampleHud ExampleHud::create(UI::UIContext& ui,
-                              GameEngine& engine,
-                              const std::vector<std::string>& objectiveIds)
+ExampleHud ExampleHud::create(UI::UIContext& ui, GameEngine& engine, const std::vector<std::string>& objectiveIds)
 {
     return create(ui, engine, objectiveIds, Config{});
 }
 
-ExampleHud ExampleHud::create(UI::UIContext& ui,
-                              GameEngine& engine,
-                              const std::vector<std::string>& objectiveIds,
-                              const Config& config)
+ExampleHud ExampleHud::create(UI::UIContext& ui, GameEngine& engine, const std::vector<std::string>& objectiveIds, const Config& config)
 {
     ExampleHud hud;
 
     // Boat speed label (top-left)
     {
-        auto label = std::make_unique<UI::UILabel>();
+        auto label       = std::make_unique<UI::UILabel>();
         hud.m_speedLabel = label.get();
         label->setPositionPx(config.marginPx, config.marginPx);
         label->setSizePx(420.0f, 24.0f);
@@ -102,19 +97,18 @@ ExampleHud ExampleHud::create(UI::UIContext& ui,
         hud.m_objectiveLines.reserve(objectiveIds.size());
         for (const auto& id : objectiveIds)
         {
-            const auto* def = engine.getObjectiveRegistry().find(id);
+            const auto* def   = engine.getObjectiveRegistry().find(id);
             std::string title = (def != nullptr && !def->title.empty()) ? def->title : id;
 
             std::vector<std::string> signalIds;
             std::int64_t             signalCount = 0;
-            if (def != nullptr && def->progression.mode == Objectives::ProgressionMode::Signals
-                && def->progression.signalCount > 1)
+            if (def != nullptr && def->progression.mode == Objectives::ProgressionMode::Signals && def->progression.signalCount > 1)
             {
                 signalIds   = def->progression.signals;
                 signalCount = def->progression.signalCount;
             }
 
-            auto label = std::make_unique<UI::UILabel>();
+            auto         label    = std::make_unique<UI::UILabel>();
             UI::UILabel* labelPtr = label.get();
             label->setSizePx(config.panelW - 20.0f, 20.0f);
             applyHudLabelStyle(*label);
@@ -157,7 +151,9 @@ void ExampleHud::update(World& world, Entity boat, Entity objectiveState)
         m_speedLabel->setText(ss.str());
     }
 
-    const Components::CObjectives* obj = objectiveState.isValid() ? world.components().tryGet<Components::CObjectives>(objectiveState) : nullptr;
+    const Components::CObjectives* obj = objectiveState.isValid()
+                                             ? world.components().tryGet<Components::CObjectives>(objectiveState)
+                                             : nullptr;
 
     for (auto& line : m_objectiveLines)
     {
@@ -166,8 +162,8 @@ void ExampleHud::update(World& world, Entity boat, Entity objectiveState)
             continue;
         }
 
-        Components::ObjectiveStatus status = Components::ObjectiveStatus::Inactive;
-        const Components::ObjectiveInstance* inst = nullptr;
+        Components::ObjectiveStatus          status = Components::ObjectiveStatus::Inactive;
+        const Components::ObjectiveInstance* inst   = nullptr;
         if (obj)
         {
             inst = obj->tryGetObjective(line.id);

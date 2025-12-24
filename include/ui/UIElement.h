@@ -38,7 +38,7 @@ inline void applyOverrides(UIStyle& base, const UIStyleOverrides& overrides)
         base.textSizePx = *overrides.textSizePx;
     }
 }
-}
+}  // namespace detail
 
 class UIElement
 {

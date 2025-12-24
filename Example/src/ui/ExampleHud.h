@@ -14,7 +14,7 @@ namespace UI
 {
 class UIContext;
 class UILabel;
-}
+}  // namespace UI
 
 namespace Example
 {
@@ -31,25 +31,21 @@ public:
 
     ExampleHud() = default;
 
-    static ExampleHud create(UI::UIContext& ui,
-                             GameEngine& engine,
-                             const std::vector<std::string>& objectiveIds);
+    static ExampleHud create(UI::UIContext& ui, GameEngine& engine, const std::vector<std::string>& objectiveIds);
 
-    static ExampleHud create(UI::UIContext& ui,
-                             GameEngine& engine,
-                             const std::vector<std::string>& objectiveIds,
-                             const Config& config);
+    static ExampleHud
+    create(UI::UIContext& ui, GameEngine& engine, const std::vector<std::string>& objectiveIds, const Config& config);
 
     void update(World& world, Entity boat, Entity objectiveState);
 
 private:
     struct ObjectiveHudLine
     {
-        std::string  id;
-        std::string  title;
+        std::string              id;
+        std::string              title;
         std::vector<std::string> signalIds;
         std::int64_t             signalCount{0};
-        UI::UILabel* label{};
+        UI::UILabel*             label{};
     };
 
     UI::UILabel*                  m_speedLabel = nullptr;

@@ -23,8 +23,8 @@ protected:
     void onRender(UIDrawList& drawList, const UITheme* theme) const override
     {
         const UIStyle s = resolveStyle(theme);
-        const UIRect r = rectPx();
-        const Vec2   pos{r.x, r.y};
+        const UIRect  r = rectPx();
+        const Vec2    pos{r.x, r.y};
         drawList.addText(pos, m_text, s.textColor, s.fontPath, s.textSizePx, transform().z);
     }
 

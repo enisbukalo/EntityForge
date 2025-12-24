@@ -114,7 +114,7 @@ int main()
         (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
 
         // --- Objectives demo (data-driven) ---
-        Entity objectiveState;
+        Entity                   objectiveState;
         std::vector<std::string> objectiveIds;
         {
             std::vector<std::string> errors;
@@ -140,7 +140,7 @@ int main()
                 "example.objective.boat.move_forward",
                 "example.objective.boat.rotate",
                 "example.objective.boat.reverse",
-                "example.objective.boat.hit_10_barrels",
+                "example.objective.boat.hit_30_barrels",
             };
 
             for (const auto& id : objectiveIds)

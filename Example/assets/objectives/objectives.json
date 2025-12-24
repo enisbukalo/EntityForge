@@ -33,14 +33,14 @@
         }
     },
     {
-        "id": "example.objective.boat.hit_10_barrels",
+        "id": "example.objective.boat.hit_30_barrels",
         "title": "Hit 30 Barrels",
         "description": "Bump into barrels 30 times.",
         "progression": {
             "mode": "signals",
             "count": 30,
             "signals": [
-                "example.signal.boat.hit_10_barrels"
+                "example.signal.boat.hit_30_barrels"
             ]
         }
     }

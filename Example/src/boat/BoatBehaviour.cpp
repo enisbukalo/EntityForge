@@ -48,7 +48,7 @@ void BoatBehaviour::onCreate(Entity self, World& world)
 
     setupFixedMovement(self, world);
 
-    // Count barrel overlaps via sensor events and complete the demo objective at 10.
+    // Count barrel overlaps via sensor events and advance the demo objective.
     m_triggerEnterSub = ScopedSubscription(world.events(),
                                            world.events().subscribe<Physics::TriggerEnter>(
                                                [this](const Physics::TriggerEnter& ev, World& w)
@@ -66,7 +66,7 @@ void BoatBehaviour::onCreate(Entity self, World& world)
 
                                                    ++m_barrelsHitCount;
                                                    w.events().emit(Objectives::ObjectiveSignal{
-                                                       std::string("example.signal.boat.hit_10_barrels")});
+                                                       std::string("example.signal.boat.hit_30_barrels")});
                                                }));
 
     LOG_INFO_CONSOLE("Controls:");

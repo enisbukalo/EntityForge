@@ -109,7 +109,7 @@ bool parseDefinition(const json& j, const std::filesystem::path& sourceFile, Obj
             }
             else if (mode == "signals")
             {
-                def.progression.mode = ProgressionMode::Signals;
+                def.progression.mode        = ProgressionMode::Signals;
                 def.progression.signalCount = pj.value("count", static_cast<std::int64_t>(1));
                 if (def.progression.signalCount < 1)
                 {
@@ -375,9 +375,9 @@ bool ObjectiveRegistry::loadFromDirectory(const std::filesystem::path& dir, std:
 
         try
         {
-            const std::string text = Internal::FileUtilities::readFile(path.string());
-            json              root = json::parse(text);
-            auto loadOne = [&](const json& obj)
+            const std::string text    = Internal::FileUtilities::readFile(path.string());
+            json              root    = json::parse(text);
+            auto              loadOne = [&](const json& obj)
             {
                 ObjectiveDefinition def;
                 (void)parseDefinition(obj, path, def, errors);
@@ -470,13 +470,16 @@ std::vector<const ObjectiveDefinition*> ObjectiveRegistry::all() const
         defs.push_back(&def);
     }
 
-    std::sort(defs.begin(), defs.end(), [](const ObjectiveDefinition* a, const ObjectiveDefinition* b) {
-        if (a == nullptr || b == nullptr)
-        {
-            return a < b;
-        }
-        return a->id < b->id;
-    });
+    std::sort(defs.begin(),
+              defs.end(),
+              [](const ObjectiveDefinition* a, const ObjectiveDefinition* b)
+              {
+                  if (a == nullptr || b == nullptr)
+                  {
+                      return a < b;
+                  }
+                  return a->id < b->id;
+              });
 
     return defs;
 }
