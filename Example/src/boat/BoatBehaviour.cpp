@@ -65,11 +65,8 @@ void BoatBehaviour::onCreate(Entity self, World& world)
                                                    }
 
                                                    ++m_barrelsHitCount;
-                                                   if (m_barrelsHitCount == 10)
-                                                   {
-                                                       w.events().emit(Objectives::ObjectiveSignal{
-                                                           std::string("example.signal.boat.hit_10_barrels")});
-                                                   }
+                                                   w.events().emit(Objectives::ObjectiveSignal{
+                                                       std::string("example.signal.boat.hit_10_barrels")});
                                                }));
 
     LOG_INFO_CONSOLE("Controls:");

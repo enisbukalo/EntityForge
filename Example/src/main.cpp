@@ -19,8 +19,6 @@
 #include <vector>
 
 #include <UIContext.h>
-#include <UILabel.h>
-#include <UIPanel.h>
 
 #include "AudioManager.h"
 #include "AudioManagerBehaviour.h"
@@ -33,6 +31,8 @@
 #include "CameraController.h"
 #include "CameraControllerBehaviour.h"
 #include "MainCamera.h"
+
+#include "ExampleHud.h"
 
 using namespace Systems;
 
@@ -92,27 +92,6 @@ int main()
         UI::UIContext ui;
         engine.setUIContext(&ui);
 
-        {
-            auto panel = std::make_unique<UI::UIPanel>();
-            panel->setPositionPx(20.0f, 20.0f);
-            panel->setSizePx(420.0f, 90.0f);
-            panel->style().backgroundColor = Color(0, 0, 0, 160);
-
-            auto label = std::make_unique<UI::UILabel>();
-            label->setPositionPx(30.0f, 30.0f);
-            label->setText("UI Phase 1: Panel + Label");
-            label->style().textColor  = Color::White;
-            label->style().textSizePx = 18;
-#if defined(_WIN32)
-            label->style().fontPath = "C:/Windows/Fonts/arial.ttf";
-#else
-            label->style().fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
-#endif
-
-            panel->addChild(std::move(label));
-            ui.root().addChild(std::move(panel));
-        }
-
         registerExampleScriptTypes();
 
         LOG_INFO_CONSOLE("Configuring input manager...");
@@ -135,6 +114,8 @@ int main()
         (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
 
         // --- Objectives demo (data-driven) ---
+        Entity objectiveState;
+        std::vector<std::string> objectiveIds;
         {
             std::vector<std::string> errors;
             const bool               ok = engine.getObjectiveRegistry().loadFromDirectory("assets/objectives", &errors);
@@ -151,15 +132,24 @@ int main()
                 LOG_ERROR_CONSOLE("{}", e);
             }
 
-            const Entity objectiveState = world.createEntity();
+            objectiveState = world.createEntity();
             world.components().add<Components::CName>(objectiveState, std::string("ObjectiveState"));
             world.components().add<Components::CObjectives>(objectiveState);
 
-            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.move_forward")});
-            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.rotate")});
-            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.reverse")});
-            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.hit_10_barrels")});
+            objectiveIds = {
+                "example.objective.boat.move_forward",
+                "example.objective.boat.rotate",
+                "example.objective.boat.reverse",
+                "example.objective.boat.hit_10_barrels",
+            };
+
+            for (const auto& id : objectiveIds)
+            {
+                world.events().emit(Objectives::ObjectiveActivate{std::string(id)});
+            }
         }
+
+        Example::ExampleHud hud = Example::ExampleHud::create(ui, engine, objectiveIds);
 
         // Save/load demo + mouse picking demo.
         // Save files resolve to: <exe_dir>/saved_games/<slot>.json
@@ -229,6 +219,9 @@ int main()
             }
 
             engine.update(safeDt);
+
+            hud.update(world, boat, objectiveState);
+
             engine.render();
         }
 

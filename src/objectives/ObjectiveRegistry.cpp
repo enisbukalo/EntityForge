@@ -4,6 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <unordered_map>
 
@@ -109,6 +110,12 @@ bool parseDefinition(const json& j, const std::filesystem::path& sourceFile, Obj
             else if (mode == "signals")
             {
                 def.progression.mode = ProgressionMode::Signals;
+                def.progression.signalCount = pj.value("count", static_cast<std::int64_t>(1));
+                if (def.progression.signalCount < 1)
+                {
+                    errors.push_back(toErrorPrefix(sourceFile) + "'progression.count' must be >= 1 (defaulting to 1)");
+                    def.progression.signalCount = 1;
+                }
                 if (pj.contains("signals"))
                 {
                     const auto& sj = pj.at("signals");
@@ -370,7 +377,6 @@ bool ObjectiveRegistry::loadFromDirectory(const std::filesystem::path& dir, std:
         {
             const std::string text = Internal::FileUtilities::readFile(path.string());
             json              root = json::parse(text);
-
             auto loadOne = [&](const json& obj)
             {
                 ObjectiveDefinition def;
@@ -451,6 +457,28 @@ const ObjectiveDefinition* ObjectiveRegistry::find(std::string_view id) const
 size_t ObjectiveRegistry::size() const
 {
     return m_definitions.size();
+}
+
+std::vector<const ObjectiveDefinition*> ObjectiveRegistry::all() const
+{
+    std::vector<const ObjectiveDefinition*> defs;
+    defs.reserve(m_definitions.size());
+
+    for (const auto& [id, def] : m_definitions)
+    {
+        (void)id;
+        defs.push_back(&def);
+    }
+
+    std::sort(defs.begin(), defs.end(), [](const ObjectiveDefinition* a, const ObjectiveDefinition* b) {
+        if (a == nullptr || b == nullptr)
+        {
+            return a < b;
+        }
+        return a->id < b->id;
+    });
+
+    return defs;
 }
 
 }  // namespace Objectives
