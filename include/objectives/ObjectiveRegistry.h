@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -37,6 +38,9 @@ public:
 
     [[nodiscard]] const ObjectiveDefinition* find(std::string_view id) const;
     [[nodiscard]] size_t                     size() const;
+
+    // Returns all loaded definitions in deterministic order (sorted by id).
+    [[nodiscard]] std::vector<const ObjectiveDefinition*> all() const;
 
 private:
     std::unordered_map<std::string, ObjectiveDefinition> m_definitions;

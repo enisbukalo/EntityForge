@@ -231,6 +231,15 @@ void SInput::unbindAction(const std::string& actionName)
 
 void SInput::dispatch(World& world, const InputEvent& inputEvent)
 {
+    if (m_preDispatchFilter)
+    {
+        const bool consumed = m_preDispatchFilter(inputEvent);
+        if (consumed)
+        {
+            return;
+        }
+    }
+
     for (const auto& kv : m_subscribers)
     {
         try

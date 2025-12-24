@@ -3,6 +3,8 @@
 #include <Logger.h>
 #include <World.h>
 
+#include <cstdint>
+
 #include <CName.h>
 #include <CObjectives.h>
 #include <ObjectiveDefinition.h>
@@ -262,7 +264,29 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                                       }
                                       if (hasSignal(*def, ev.signalId))
                                       {
-                                          completeObjective(objectives, inst.id);
+                                          if (def->progression.signalCount <= 1)
+                                          {
+                                              completeObjective(objectives, inst.id);
+                                              continue;
+                                          }
+
+                                          // Count matching signals towards completion.
+                                          inst.counters[ev.signalId] += 1;
+
+                                          std::int64_t total = 0;
+                                          for (const auto& sid : def->progression.signals)
+                                          {
+                                              const auto it = inst.counters.find(sid);
+                                              if (it != inst.counters.end())
+                                              {
+                                                  total += it->second;
+                                              }
+                                          }
+
+                                          if (total >= def->progression.signalCount)
+                                          {
+                                              completeObjective(objectives, inst.id);
+                                          }
                                       }
                                   }
                               }

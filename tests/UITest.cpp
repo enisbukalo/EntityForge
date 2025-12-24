@@ -1,0 +1,776 @@
+#include <gtest/gtest.h>
+
+#include <cmath>
+
+#include <InputEvents.h>
+
+#include <UIContext.h>
+#include <UIButton.h>
+#include <UIHorizontalLayout.h>
+#include <UILabel.h>
+#include <UIPanel.h>
+#include <UIVerticalLayout.h>
+#include <UITheme.h>
+
+TEST(UIPhase1, PanelEmitsRectCommand)
+{
+    UI::UIPanel panel;
+    panel.setPositionPx(10.0f, 20.0f);
+    panel.setSizePx(100.0f, 50.0f);
+    panel.setZ(3);
+    panel.style().backgroundColor = Color(1, 2, 3, 4);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 800.0f, 600.0f});
+
+    UI::UIDrawList list;
+    panel.render(list);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    const auto& cmd = list.commands()[0];
+    EXPECT_EQ(cmd.z, 3);
+
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(cmd.payload));
+    const auto& r = std::get<UI::UIDrawRect>(cmd.payload);
+    EXPECT_FLOAT_EQ(r.rectPx.x, 10.0f);
+    EXPECT_FLOAT_EQ(r.rectPx.y, 20.0f);
+    EXPECT_FLOAT_EQ(r.rectPx.w, 100.0f);
+    EXPECT_FLOAT_EQ(r.rectPx.h, 50.0f);
+    EXPECT_EQ(r.color, Color(1, 2, 3, 4));
+}
+
+TEST(UIPhase5, ThemeIsOptionalAndLocalStyleWorks)
+{
+    UI::UIPanel panel;
+    panel.setPositionPx(10.0f, 20.0f);
+    panel.setSizePx(30.0f, 40.0f);
+    panel.style().backgroundColor = Color(9, 8, 7, 6);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    UI::UIDrawList list;
+    panel.render(list, nullptr);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+    const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+    EXPECT_EQ(r.color, Color(9, 8, 7, 6));
+}
+
+TEST(UIPhase5, ThemeDefaultsApplyAndOverridesWin)
+{
+    UI::UITheme theme;
+
+    UI::UIStyle themed;
+    themed.backgroundColor = Color(1, 2, 3, 4);
+    themed.textColor       = Color(5, 6, 7, 8);
+    themed.fontPath        = "ThemeFont.ttf";
+    themed.textSizePx      = 19;
+    theme.setStyle("menu.panel", themed);
+
+    UI::UIPanel panel;
+    panel.setStyleClass("menu.panel");
+    // Local style exists but should not be required/used to override a theme.
+    panel.style().backgroundColor = Color(50, 50, 50, 50);
+    // Explicit overrides should win.
+    panel.styleOverrides().backgroundColor = Color(9, 9, 9, 9);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    UI::UIDrawList list;
+    panel.render(list, &theme);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+    const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+    EXPECT_EQ(r.color, Color(9, 9, 9, 9));
+}
+
+TEST(UIPhase5, ButtonUsesThemeStateClassesWithFallback)
+{
+    UI::UITheme theme;
+
+    UI::UIStyle base;
+    base.backgroundColor = Color(10, 0, 0, 255);
+    base.textColor       = Color(255, 255, 255, 255);
+    base.textSizePx      = 16;
+    theme.setStyle("menu.button", base);
+
+    UI::UIStyle hovered;
+    hovered.backgroundColor = Color(0, 10, 0, 255);
+    hovered.textColor       = base.textColor;
+    hovered.textSizePx      = base.textSizePx;
+    theme.setStyle("menu.button.hovered", hovered);
+
+    UI::UIStyle pressed;
+    pressed.backgroundColor = Color(0, 0, 10, 255);
+    pressed.textColor       = base.textColor;
+    pressed.textSizePx      = base.textSizePx;
+    theme.setStyle("menu.button.pressed", pressed);
+
+    // Intentionally omit .disabled to test fallback to base.
+
+    UI::UIButton button;
+    button.setStyleClass("menu.button");
+    button.setPositionPx(0.0f, 0.0f);
+    button.setSizePx(10.0f, 10.0f);
+    button.setText("B");
+
+    button.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    // Normal
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, base.backgroundColor);
+    }
+
+    // Hovered
+    button.notifyHoverChanged(true);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, hovered.backgroundColor);
+    }
+
+    // Pressed
+    button.notifyActiveChanged(true);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, pressed.backgroundColor);
+    }
+
+    // Disabled: falls back to base since theme has no .disabled.
+    button.setEnabled(false);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, base.backgroundColor);
+    }
+}
+TEST(UIPhase1, LabelEmitsTextCommand)
+{
+    UI::UILabel label;
+    label.setPositionPx(7.0f, 9.0f);
+    label.setZ(2);
+    label.setText("Hello");
+    label.style().textColor  = Color(10, 20, 30, 40);
+    label.style().textSizePx = 22;
+    label.style().fontPath   = "SomeFont.ttf";
+
+    label.layout(UI::UIRect{0.0f, 0.0f, 800.0f, 600.0f});
+
+    UI::UIDrawList list;
+    label.render(list);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    const auto& cmd = list.commands()[0];
+    EXPECT_EQ(cmd.z, 2);
+
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawText>(cmd.payload));
+    const auto& t = std::get<UI::UIDrawText>(cmd.payload);
+    EXPECT_FLOAT_EQ(t.positionPx.x, 7.0f);
+    EXPECT_FLOAT_EQ(t.positionPx.y, 9.0f);
+    EXPECT_EQ(t.text, "Hello");
+    EXPECT_EQ(t.color, Color(10, 20, 30, 40));
+    EXPECT_EQ(t.fontPath, "SomeFont.ttf");
+    EXPECT_EQ(t.sizePx, 22u);
+}
+
+TEST(UIPhase1, RenderTraversesChildren)
+{
+    UI::UIContext ui;
+
+    auto panel = std::make_unique<UI::UIPanel>();
+    panel->setPositionPx(0.0f, 0.0f);
+    panel->setSizePx(10.0f, 10.0f);
+    panel->style().backgroundColor = Color(5, 6, 7, 8);
+
+    auto label = std::make_unique<UI::UILabel>();
+    label->setPositionPx(1.0f, 2.0f);
+    label->setText("Child");
+
+    panel->addChild(std::move(label));
+    ui.root().addChild(std::move(panel));
+
+    ui.layout(UI::UIRect{0.0f, 0.0f, 800.0f, 600.0f});
+
+    UI::UIDrawList list;
+    ui.root().render(list);
+
+    ASSERT_EQ(list.commands().size(), 2u);
+    EXPECT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+    EXPECT_TRUE(std::holds_alternative<UI::UIDrawText>(list.commands()[1].payload));
+}
+
+TEST(UIPhase2, CenterAnchorWithOffsetsComputesExpectedRect)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    panel.setOffsetsPx(-50.0f, -25.0f, 50.0f, 25.0f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 200.0f, 100.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r.x, 50.0f);
+    EXPECT_FLOAT_EQ(r.y, 25.0f);
+    EXPECT_FLOAT_EQ(r.w, 100.0f);
+    EXPECT_FLOAT_EQ(r.h, 50.0f);
+}
+
+TEST(UIPhase2, StretchAnchorsWithPaddingComputesExpectedRect)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    panel.setOffsetsPx(10.0f, 20.0f, -10.0f, -20.0f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 300.0f, 200.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r.x, 10.0f);
+    EXPECT_FLOAT_EQ(r.y, 20.0f);
+    EXPECT_FLOAT_EQ(r.w, 280.0f);
+    EXPECT_FLOAT_EQ(r.h, 160.0f);
+}
+
+TEST(UIPhase2, ParentResizeRecomputesStretchLayout)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    panel.setOffsetsPx(10.0f, 20.0f, -10.0f, -20.0f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+    const UI::UIRect r1 = panel.rectPx();
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 200.0f, 200.0f});
+    const UI::UIRect r2 = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 20.0f);
+    EXPECT_FLOAT_EQ(r1.w, 80.0f);
+    EXPECT_FLOAT_EQ(r1.h, 60.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 10.0f);
+    EXPECT_FLOAT_EQ(r2.y, 20.0f);
+    EXPECT_FLOAT_EQ(r2.w, 180.0f);
+    EXPECT_FLOAT_EQ(r2.h, 160.0f);
+}
+
+TEST(UIPhase2, PivotMovesRectRelativeToAnchor)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    panel.setPivotNormalized(0.5f, 0.5f);
+    panel.setOffsetsPx(0.0f, 0.0f, 10.0f, 20.0f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r.x, 45.0f);
+    EXPECT_FLOAT_EQ(r.y, 40.0f);
+    EXPECT_FLOAT_EQ(r.w, 10.0f);
+    EXPECT_FLOAT_EQ(r.h, 20.0f);
+}
+
+TEST(UIPhase2, OffsetChangeRecomputesWithSameParentRect)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    panel.setPivotNormalized(0.0f, 0.0f);
+    panel.setOffsetsPx(-10.0f, -10.0f, 10.0f, 10.0f);
+
+    const UI::UIRect parent{0.0f, 0.0f, 100.0f, 100.0f};
+    panel.layout(parent);
+    const UI::UIRect r1 = panel.rectPx();
+
+    panel.setOffsetsPx(-20.0f, -5.0f, 20.0f, 5.0f);
+    panel.layout(parent);
+    const UI::UIRect r2 = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 40.0f);
+    EXPECT_FLOAT_EQ(r1.y, 40.0f);
+    EXPECT_FLOAT_EQ(r1.w, 20.0f);
+    EXPECT_FLOAT_EQ(r1.h, 20.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 30.0f);
+    EXPECT_FLOAT_EQ(r2.y, 45.0f);
+    EXPECT_FLOAT_EQ(r2.w, 40.0f);
+    EXPECT_FLOAT_EQ(r2.h, 10.0f);
+}
+
+TEST(UIPhase2, PivotChangeRecomputesWithSameOffsets)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    panel.setOffsetsPx(0.0f, 0.0f, 10.0f, 20.0f);
+
+    const UI::UIRect parent{0.0f, 0.0f, 100.0f, 100.0f};
+
+    panel.setPivotNormalized(0.0f, 0.0f);
+    panel.layout(parent);
+    const UI::UIRect r1 = panel.rectPx();
+
+    panel.setPivotNormalized(1.0f, 1.0f);
+    panel.layout(parent);
+    const UI::UIRect r2 = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 50.0f);
+    EXPECT_FLOAT_EQ(r1.y, 50.0f);
+    EXPECT_FLOAT_EQ(r1.w, 10.0f);
+    EXPECT_FLOAT_EQ(r1.h, 20.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 40.0f);
+    EXPECT_FLOAT_EQ(r2.y, 30.0f);
+    EXPECT_FLOAT_EQ(r2.w, 10.0f);
+    EXPECT_FLOAT_EQ(r2.h, 20.0f);
+}
+
+TEST(UIPhase2, PivotDoesNotAffectStretchedAnchors)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    panel.setOffsetsPx(10.0f, 20.0f, -10.0f, -20.0f);
+
+    const UI::UIRect parent{0.0f, 0.0f, 300.0f, 200.0f};
+
+    panel.setPivotNormalized(0.0f, 0.0f);
+    panel.layout(parent);
+    const UI::UIRect r1 = panel.rectPx();
+
+    panel.setPivotNormalized(1.0f, 1.0f);
+    panel.layout(parent);
+    const UI::UIRect r2 = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 20.0f);
+    EXPECT_FLOAT_EQ(r1.w, 280.0f);
+    EXPECT_FLOAT_EQ(r1.h, 160.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 10.0f);
+    EXPECT_FLOAT_EQ(r2.y, 20.0f);
+    EXPECT_FLOAT_EQ(r2.w, 280.0f);
+    EXPECT_FLOAT_EQ(r2.h, 160.0f);
+}
+
+TEST(UIPhase2, MixedAnchorsPivotAffectsOnlyPointAxis)
+{
+    UI::UIPanel panel;
+    // Stretch horizontally, point-anchor vertically (center).
+    panel.setAnchorsNormalized(0.0f, 0.5f, 1.0f, 0.5f);
+    panel.setOffsetsPx(10.0f, 0.0f, -10.0f, 20.0f);
+    panel.setPivotNormalized(1.0f, 0.5f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 200.0f, 100.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r.x, 10.0f);
+    EXPECT_FLOAT_EQ(r.w, 180.0f);
+    EXPECT_FLOAT_EQ(r.y, 40.0f);
+    EXPECT_FLOAT_EQ(r.h, 20.0f);
+}
+
+TEST(UIPhase2, AnchorChangeRecomputesWithSameParentRect)
+{
+    UI::UIPanel panel;
+    const UI::UIRect parent{0.0f, 0.0f, 200.0f, 100.0f};
+
+    panel.setAnchorsNormalized(0.0f, 0.0f, 0.0f, 0.0f);
+    panel.setPivotNormalized(0.0f, 0.0f);
+    panel.setOffsetsPx(10.0f, 20.0f, 110.0f, 70.0f);
+
+    panel.layout(parent);
+    const UI::UIRect r1 = panel.rectPx();
+
+    panel.setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    panel.setOffsetsPx(5.0f, 6.0f, -7.0f, -8.0f);
+
+    panel.layout(parent);
+    const UI::UIRect r2 = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 20.0f);
+    EXPECT_FLOAT_EQ(r1.w, 100.0f);
+    EXPECT_FLOAT_EQ(r1.h, 50.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 5.0f);
+    EXPECT_FLOAT_EQ(r2.y, 6.0f);
+    EXPECT_FLOAT_EQ(r2.w, 188.0f);
+    EXPECT_FLOAT_EQ(r2.h, 86.0f);
+}
+
+TEST(UIPhase2, ChildLayoutUsesComputedParentRect)
+{
+    // Parent is placed in absolute (Phase 1-compatible) mode.
+    auto parent = std::make_unique<UI::UIPanel>();
+    parent->setPositionPx(10.0f, 20.0f);
+    parent->setSizePx(100.0f, 50.0f);
+
+    // Child stretches within parent with padding margins.
+    auto child = std::make_unique<UI::UIPanel>();
+    child->setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    child->setOffsetsPx(5.0f, 6.0f, -7.0f, -8.0f);
+
+    UI::UIElement& childRef = parent->addChild(std::move(child));
+
+    parent->layout(UI::UIRect{0.0f, 0.0f, 400.0f, 300.0f});
+
+    const UI::UIRect parentRect = parent->rectPx();
+    const UI::UIRect childRect  = childRef.rectPx();
+
+    EXPECT_FLOAT_EQ(parentRect.x, 10.0f);
+    EXPECT_FLOAT_EQ(parentRect.y, 20.0f);
+    EXPECT_FLOAT_EQ(parentRect.w, 100.0f);
+    EXPECT_FLOAT_EQ(parentRect.h, 50.0f);
+
+    EXPECT_FLOAT_EQ(childRect.x, 15.0f);
+    EXPECT_FLOAT_EQ(childRect.y, 26.0f);
+    EXPECT_FLOAT_EQ(childRect.w, 88.0f);
+    EXPECT_FLOAT_EQ(childRect.h, 36.0f);
+}
+
+TEST(UIPhase2, ChildRecomputesWhenParentChanges)
+{
+    auto parent = std::make_unique<UI::UIPanel>();
+    parent->setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    parent->setOffsetsPx(-50.0f, -25.0f, 50.0f, 25.0f);
+
+    auto child = std::make_unique<UI::UIPanel>();
+    child->setAnchorsNormalized(0.0f, 0.0f, 1.0f, 1.0f);
+    child->setOffsetsPx(0.0f, 0.0f, 0.0f, 0.0f);
+
+    UI::UIElement& childRef = parent->addChild(std::move(child));
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+
+    parent->layout(viewport);
+    const UI::UIRect r1 = childRef.rectPx();
+
+    // Move/resize the parent via offsets; child should track computed parent rect.
+    parent->setOffsetsPx(-40.0f, -20.0f, 40.0f, 20.0f);
+    parent->layout(viewport);
+    const UI::UIRect r2 = childRef.rectPx();
+
+    EXPECT_FLOAT_EQ(r1.x, 50.0f);
+    EXPECT_FLOAT_EQ(r1.y, 25.0f);
+    EXPECT_FLOAT_EQ(r1.w, 100.0f);
+    EXPECT_FLOAT_EQ(r1.h, 50.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 60.0f);
+    EXPECT_FLOAT_EQ(r2.y, 30.0f);
+    EXPECT_FLOAT_EQ(r2.w, 80.0f);
+    EXPECT_FLOAT_EQ(r2.h, 40.0f);
+}
+
+TEST(UIPhase2, ZeroSizedParentRectProducesFiniteRect)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.5f, 0.5f, 0.5f, 0.5f);
+    panel.setPivotNormalized(0.5f, 0.5f);
+    panel.setOffsetsPx(0.0f, 0.0f, 10.0f, 20.0f);
+
+    panel.layout(UI::UIRect{10.0f, 20.0f, 0.0f, 0.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_TRUE(std::isfinite(r.x));
+    EXPECT_TRUE(std::isfinite(r.y));
+    EXPECT_TRUE(std::isfinite(r.w));
+    EXPECT_TRUE(std::isfinite(r.h));
+
+    EXPECT_FLOAT_EQ(r.x, 5.0f);
+    EXPECT_FLOAT_EQ(r.y, 10.0f);
+    EXPECT_FLOAT_EQ(r.w, 10.0f);
+    EXPECT_FLOAT_EQ(r.h, 20.0f);
+}
+
+TEST(UIPhase2, NegativeSizeOffsetsArePreserved)
+{
+    UI::UIPanel panel;
+    panel.setAnchorsNormalized(0.0f, 0.0f, 0.0f, 0.0f);
+    panel.setPivotNormalized(0.0f, 0.0f);
+    panel.setOffsetsPx(10.0f, 10.0f, 0.0f, 0.0f);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+    const UI::UIRect r = panel.rectPx();
+
+    EXPECT_FLOAT_EQ(r.x, 10.0f);
+    EXPECT_FLOAT_EQ(r.y, 10.0f);
+    EXPECT_FLOAT_EQ(r.w, -10.0f);
+    EXPECT_FLOAT_EQ(r.h, -10.0f);
+}
+
+TEST(UIPhase3, HitTestPicksHigherZ)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto a = std::make_unique<UI::UIPanel>();
+    a->setPositionPx(0.0f, 0.0f);
+    a->setSizePx(50.0f, 50.0f);
+    a->setZ(1);
+    a->setHitTestVisible(true);
+
+    auto b = std::make_unique<UI::UIPanel>();
+    b->setPositionPx(0.0f, 0.0f);
+    b->setSizePx(50.0f, 50.0f);
+    b->setZ(2);
+    b->setHitTestVisible(true);
+
+    UI::UIElement* aPtr = a.get();
+    UI::UIElement* bPtr = b.get();
+
+    ui.root().addChild(std::move(a));
+    ui.root().addChild(std::move(b));
+
+    InputEvent ev{};
+    ev.type               = InputEventType::MouseMoved;
+    ev.mouseMove.position = Vec2i{10, 10};
+    (void)ui.handleInputEvent(ev);
+
+    EXPECT_EQ(ui.inputState().hovered, bPtr);
+    EXPECT_NE(ui.inputState().hovered, aPtr);
+}
+
+TEST(UIPhase3, HitTestTieUsesTraversalOrder)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto first = std::make_unique<UI::UIPanel>();
+    first->setPositionPx(0.0f, 0.0f);
+    first->setSizePx(50.0f, 50.0f);
+    first->setZ(0);
+    first->setHitTestVisible(true);
+
+    auto second = std::make_unique<UI::UIPanel>();
+    second->setPositionPx(0.0f, 0.0f);
+    second->setSizePx(50.0f, 50.0f);
+    second->setZ(0);
+    second->setHitTestVisible(true);
+
+    UI::UIElement* firstPtr  = first.get();
+    UI::UIElement* secondPtr = second.get();
+
+    ui.root().addChild(std::move(first));
+    ui.root().addChild(std::move(second));
+
+    InputEvent ev{};
+    ev.type               = InputEventType::MouseMoved;
+    ev.mouseMove.position = Vec2i{1, 1};
+    (void)ui.handleInputEvent(ev);
+
+    EXPECT_EQ(ui.inputState().hovered, secondPtr);
+    EXPECT_NE(ui.inputState().hovered, firstPtr);
+}
+
+TEST(UIPhase3, ButtonClickConsumesAndFiresCallback)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    int clicks = 0;
+    auto btn   = std::make_unique<UI::UIButton>();
+    btn->setPositionPx(0.0f, 0.0f);
+    btn->setSizePx(80.0f, 30.0f);
+    btn->onClick([&]() { ++clicks; });
+
+    ui.root().addChild(std::move(btn));
+
+    InputEvent move{};
+    move.type               = InputEventType::MouseMoved;
+    move.mouseMove.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(move));
+
+    InputEvent down{};
+    down.type          = InputEventType::MouseButtonPressed;
+    down.mouse.button  = MouseButton::Left;
+    down.mouse.position = Vec2i{10, 10};
+    EXPECT_TRUE(ui.handleInputEvent(down));
+
+    InputEvent up{};
+    up.type           = InputEventType::MouseButtonReleased;
+    up.mouse.button   = MouseButton::Left;
+    up.mouse.position = Vec2i{10, 10};
+    EXPECT_TRUE(ui.handleInputEvent(up));
+
+    EXPECT_EQ(clicks, 1);
+}
+
+TEST(UIPhase3, DisabledButtonDoesNotConsumeOrClick)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    int clicks = 0;
+    auto btn   = std::make_unique<UI::UIButton>();
+    btn->setPositionPx(0.0f, 0.0f);
+    btn->setSizePx(80.0f, 30.0f);
+    btn->onClick([&]() { ++clicks; });
+    btn->setEnabled(false);
+
+    ui.root().addChild(std::move(btn));
+
+    InputEvent down{};
+    down.type           = InputEventType::MouseButtonPressed;
+    down.mouse.button   = MouseButton::Left;
+    down.mouse.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(down));
+
+    InputEvent up{};
+    up.type           = InputEventType::MouseButtonReleased;
+    up.mouse.button   = MouseButton::Left;
+    up.mouse.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(up));
+
+    EXPECT_EQ(clicks, 0);
+}
+
+TEST(UIPhase4, VerticalLayoutStacksChildrenWithPaddingAndSpacing)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto vbox = std::make_unique<UI::UIVerticalLayout>();
+    vbox->setPositionPx(0.0f, 0.0f);
+    vbox->setSizePx(100.0f, 100.0f);
+    vbox->setPaddingPx(10.0f, 10.0f, 10.0f, 10.0f);
+    vbox->setSpacingPx(5.0f);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    auto c2 = std::make_unique<UI::UIPanel>();
+    c2->setSizePx(30.0f, 15.0f);
+
+    UI::UIElement* c1Ptr = c1.get();
+    UI::UIElement* c2Ptr = c2.get();
+
+    vbox->addChild(std::move(c1));
+    vbox->addChild(std::move(c2));
+    ui.root().addChild(std::move(vbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r1 = c1Ptr->rectPx();
+    const UI::UIRect r2 = c2Ptr->rectPx();
+
+    // Default cross-axis alignment is Stretch.
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 10.0f);
+    EXPECT_FLOAT_EQ(r1.w, 80.0f);
+    EXPECT_FLOAT_EQ(r1.h, 10.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 10.0f);
+    EXPECT_FLOAT_EQ(r2.y, 25.0f);
+    EXPECT_FLOAT_EQ(r2.w, 80.0f);
+    EXPECT_FLOAT_EQ(r2.h, 15.0f);
+}
+
+TEST(UIPhase4, VerticalLayoutCenterAlignUsesPreferredWidth)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto vbox = std::make_unique<UI::UIVerticalLayout>();
+    vbox->setPositionPx(0.0f, 0.0f);
+    vbox->setSizePx(100.0f, 40.0f);
+    vbox->setPaddingPx(10.0f, 0.0f, 10.0f, 0.0f);
+    vbox->setSpacingPx(0.0f);
+    vbox->setCrossAxisAlignment(UI::UIVerticalLayout::CrossAxisAlignment::Center);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    UI::UIElement* c1Ptr = c1.get();
+    vbox->addChild(std::move(c1));
+    ui.root().addChild(std::move(vbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r = c1Ptr->rectPx();
+    // Inner width is 80, so centered 20px wide child starts at 10 + (80-20)/2 = 40
+    EXPECT_FLOAT_EQ(r.x, 40.0f);
+    EXPECT_FLOAT_EQ(r.w, 20.0f);
+}
+
+TEST(UIPhase4, HorizontalLayoutStacksChildrenWithPaddingAndSpacing)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto hbox = std::make_unique<UI::UIHorizontalLayout>();
+    hbox->setPositionPx(0.0f, 0.0f);
+    hbox->setSizePx(120.0f, 40.0f);
+    hbox->setPaddingPx(10.0f, 10.0f, 10.0f, 10.0f);
+    hbox->setSpacingPx(5.0f);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    auto c2 = std::make_unique<UI::UIPanel>();
+    c2->setSizePx(30.0f, 15.0f);
+
+    UI::UIElement* c1Ptr = c1.get();
+    UI::UIElement* c2Ptr = c2.get();
+
+    hbox->addChild(std::move(c1));
+    hbox->addChild(std::move(c2));
+    ui.root().addChild(std::move(hbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r1 = c1Ptr->rectPx();
+    const UI::UIRect r2 = c2Ptr->rectPx();
+
+    // Default cross-axis alignment is Stretch.
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 10.0f);
+    EXPECT_FLOAT_EQ(r1.w, 20.0f);
+    EXPECT_FLOAT_EQ(r1.h, 20.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 35.0f);
+    EXPECT_FLOAT_EQ(r2.y, 10.0f);
+    EXPECT_FLOAT_EQ(r2.w, 30.0f);
+    EXPECT_FLOAT_EQ(r2.h, 20.0f);
+}
+
+TEST(UIPhase4, HorizontalLayoutEndAlignUsesPreferredHeight)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto hbox = std::make_unique<UI::UIHorizontalLayout>();
+    hbox->setPositionPx(0.0f, 0.0f);
+    hbox->setSizePx(120.0f, 40.0f);
+    hbox->setPaddingPx(0.0f, 10.0f, 0.0f, 10.0f);
+    hbox->setSpacingPx(0.0f);
+    hbox->setCrossAxisAlignment(UI::UIHorizontalLayout::CrossAxisAlignment::End);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    UI::UIElement* c1Ptr = c1.get();
+    hbox->addChild(std::move(c1));
+    ui.root().addChild(std::move(hbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r = c1Ptr->rectPx();
+    // Inner height is 20, so end-aligned 10px tall child starts at 10 + (20-10) = 20
+    EXPECT_FLOAT_EQ(r.y, 20.0f);
+    EXPECT_FLOAT_EQ(r.h, 10.0f);
+}

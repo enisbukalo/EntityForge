@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -64,6 +65,10 @@ struct ObjectiveProgression
 
     // When mode == Signals
     std::vector<std::string> signals;
+
+    // Optional: number of matching signals required to complete the objective.
+    // Defaults to 1 to preserve legacy behavior.
+    std::int64_t signalCount{1};
 
     // When mode == Triggers
     std::vector<TriggerRule> triggers;

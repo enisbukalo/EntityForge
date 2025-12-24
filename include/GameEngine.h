@@ -43,6 +43,12 @@ namespace Objectives
 class ObjectiveRegistry;
 }
 
+namespace UI
+{
+class UIContext;
+class UIRenderer;
+}  // namespace UI
+
 /**
  * @brief Main game engine class handling core game loop and systems
  *
@@ -96,6 +102,18 @@ public:
      * @brief Renders the current game state
      */
     void render();
+
+    /**
+     * @brief Sets an optional UI context to be rendered as an overlay after the world.
+     *
+     * The engine does not own the UIContext; callers must keep it alive.
+     */
+    void setUIContext(UI::UIContext* uiContext);
+
+    UI::UIContext* getUIContext() const
+    {
+        return m_uiContext;
+    }
 
     /**
      * @brief Checks if the game is still running
@@ -178,6 +196,9 @@ private:
     std::unique_ptr<Systems::SParticle>   m_particle;    ///< Particle system owned by engine
     std::unique_ptr<Systems::SAudio>      m_audio;       ///< Audio system owned by engine
     std::unique_ptr<Systems::SObjectives> m_objectives;  ///< Objectives system owned by engine
+
+    UI::UIContext*                  m_uiContext = nullptr;  ///< Optional UI overlay (non-owning)
+    std::unique_ptr<UI::UIRenderer> m_uiRenderer;           ///< Renders UI overlay when set
 
     std::vector<Systems::ISystem*> m_systemOrder;   ///< Ordered system update list
     World                          m_world;         ///< Central world (registry + lifecycle)

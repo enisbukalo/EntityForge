@@ -153,6 +153,7 @@ set(ENGINE_INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/Input")
 set(ENGINE_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/components")
 set(ENGINE_OBJECTIVES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/objectives")
 set(ENGINE_SYSTEM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/systems")
+set(ENGINE_UI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
 set(ENGINE_UTILITY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/utility")
 set(ENGINE_PHYSICS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/physics")
 
@@ -202,6 +203,7 @@ target_include_directories(GameEngine
     $<BUILD_INTERFACE:${ENGINE_OBJECTIVES_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}/serialization>
+    $<BUILD_INTERFACE:${ENGINE_UI_DIR}>
     $<BUILD_INTERFACE:${ENGINE_UTILITY_DIR}>
     $<BUILD_INTERFACE:${ENGINE_PHYSICS_DIR}>
     $<BUILD_INTERFACE:${uuid_v4_SOURCE_DIR}>
@@ -211,6 +213,7 @@ target_include_directories(GameEngine
     $<INSTALL_INTERFACE:include/GameEngine/objectives>
     $<INSTALL_INTERFACE:include/GameEngine/systems>
     $<INSTALL_INTERFACE:include/GameEngine/systems/serialization>
+    $<INSTALL_INTERFACE:include/GameEngine/ui>
     $<INSTALL_INTERFACE:include/GameEngine/utility>
     $<INSTALL_INTERFACE:include/GameEngine/physics>
     $<INSTALL_INTERFACE:include>
@@ -322,6 +325,7 @@ if(GAMEENGINE_INSTALL)
         FILES_MATCHING PATTERN "*.h"
         PATTERN "components" EXCLUDE
         PATTERN "systems" EXCLUDE
+        PATTERN "ui" EXCLUDE
         PATTERN "utility" EXCLUDE
         PATTERN "physics" EXCLUDE
         PATTERN "objectives" EXCLUDE
@@ -339,6 +343,10 @@ if(GAMEENGINE_INSTALL)
     )
     install(DIRECTORY ${ENGINE_SYSTEM_DIR}/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/systems
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(DIRECTORY ${ENGINE_UI_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/ui
         FILES_MATCHING PATTERN "*.h"
     )
     install(DIRECTORY ${ENGINE_UTILITY_DIR}/

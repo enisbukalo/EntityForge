@@ -154,7 +154,7 @@ TEST(ObjectivesPhase4, SignalProgressionCompletesObjectiveNextTick)
   "description": "Wait for signal",
   "progression": { "mode": "signals", "signals": ["sig.finish"] }
 }
-)";
+ )";
 
     writeTextFile(dir / "signal.json", json);
 
@@ -210,6 +210,75 @@ TEST(ObjectivesPhase4, SignalProgressionCompletesObjectiveNextTick)
         EXPECT_TRUE(inst->rewardGranted);
     }
 }
+
+  TEST(ObjectivesPhase4, SignalProgressionWithCountRequiresMultipleSignals)
+  {
+    const auto dir = makeTempDir("objectives_phase4_signal_count");
+
+    const std::string json = R"(
+  {
+    "id": "quest.signal_count",
+    "title": "Signal Count Quest",
+    "description": "Requires 3 signals",
+    "progression": { "mode": "signals", "count": 3, "signals": ["sig.hit"] }
+  }
+  )";
+
+    writeTextFile(dir / "signal_count.json", json);
+
+    Objectives::ObjectiveRegistry registry;
+    std::vector<std::string>     errors;
+    ASSERT_TRUE(registry.loadFromDirectory(dir, &errors)) << (errors.empty() ? "" : errors[0]);
+
+    World world;
+    const Entity player = world.createEntity();
+    world.add<Components::CObjectives>(player, Components::CObjectives{});
+
+    Systems::SObjectives sys(&registry);
+    sys.update(0.0f, world);
+
+    // Activate.
+    world.events().emit<Objectives::ObjectiveActivate>(Objectives::ObjectiveActivate{"quest.signal_count"});
+    world.events().pump(EventStage::PreFlush, world);
+    sys.update(0.0f, world);
+
+    // First signal -> still in progress after update.
+    world.events().emit<Objectives::ObjectiveSignal>(Objectives::ObjectiveSignal{"sig.hit"});
+    world.events().pump(EventStage::PreFlush, world);
+    sys.update(0.0f, world);
+    {
+      auto* c = getObjectives(world, player);
+      ASSERT_NE(c, nullptr);
+      const auto* inst = c->tryGetObjective("quest.signal_count");
+      ASSERT_NE(inst, nullptr);
+      EXPECT_EQ(inst->status, Components::ObjectiveStatus::InProgress);
+    }
+
+    // Second signal -> still in progress.
+    world.events().emit<Objectives::ObjectiveSignal>(Objectives::ObjectiveSignal{"sig.hit"});
+    world.events().pump(EventStage::PreFlush, world);
+    sys.update(0.0f, world);
+    {
+      auto* c = getObjectives(world, player);
+      ASSERT_NE(c, nullptr);
+      const auto* inst = c->tryGetObjective("quest.signal_count");
+      ASSERT_NE(inst, nullptr);
+      EXPECT_EQ(inst->status, Components::ObjectiveStatus::InProgress);
+    }
+
+    // Third signal -> completes.
+    world.events().emit<Objectives::ObjectiveSignal>(Objectives::ObjectiveSignal{"sig.hit"});
+    world.events().pump(EventStage::PreFlush, world);
+    sys.update(0.0f, world);
+    {
+      auto* c = getObjectives(world, player);
+      ASSERT_NE(c, nullptr);
+      const auto* inst = c->tryGetObjective("quest.signal_count");
+      ASSERT_NE(inst, nullptr);
+      EXPECT_EQ(inst->status, Components::ObjectiveStatus::Completed);
+      EXPECT_TRUE(inst->rewardGranted);
+    }
+  }
 
 TEST(ObjectivesPhase4, TriggerEnterCompletesObjectiveByTriggerName)
 {
