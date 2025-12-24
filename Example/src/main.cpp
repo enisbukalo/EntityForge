@@ -113,6 +113,10 @@ int main()
             {
                 LOG_ERROR_CONSOLE("ObjectiveRegistry: failed to load objectives");
             }
+            else
+            {
+                LOG_INFO("ObjectiveRegistry: loaded {} objectives", engine.getObjectiveRegistry().size());
+            }
             for (const auto& e : errors)
             {
                 LOG_ERROR_CONSOLE("{}", e);

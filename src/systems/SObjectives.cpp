@@ -71,8 +71,19 @@ bool prereqsCompleted(const Objectives::ObjectiveDefinition& def, const Componen
 
 void completeObjective(Components::CObjectives& objectives, const std::string& objectiveId)
 {
+    const auto* before = objectives.tryGetObjective(objectiveId);
+    const auto  prev   = before ? before->status : Components::ObjectiveStatus::Inactive;
+
     objectives.setObjectiveStatus(objectiveId, Components::ObjectiveStatus::Completed);
     (void)objectives.tryGrantObjectiveReward(objectiveId);
+
+    if (prev != Components::ObjectiveStatus::Completed)
+    {
+        const auto* after  = objectives.tryGetObjective(objectiveId);
+        const auto  title  = (after != nullptr) ? after->title : std::string{};
+        const auto  detail = title.empty() ? std::string{} : (" - " + title);
+        LOG_INFO("Objectives: Completed '{}'{}", objectiveId, detail);
+    }
 }
 
 std::string tryGetEntityName(const World& world, Entity e)
@@ -178,12 +189,19 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                                       if (inst.status == Components::ObjectiveStatus::Inactive)
                                       {
                                           inst.status = Components::ObjectiveStatus::InProgress;
+                                          const auto detail = inst.title.empty() ? std::string{} : (" - " + inst.title);
+                                          LOG_INFO("Objectives: Activated '{}'{}", inst.id, detail);
                                       }
                                   }
                                   else
                                   {
                                       // Fallback: allow activation using runtime-only instance prerequisites.
-                                      (void)objectives.activateObjective(ev.objectiveId);
+                                      const auto* before = objectives.tryGetObjective(ev.objectiveId);
+                                      const auto  prev   = before ? before->status : Components::ObjectiveStatus::Inactive;
+                                      if (objectives.activateObjective(ev.objectiveId) && prev == Components::ObjectiveStatus::Inactive)
+                                      {
+                                          LOG_INFO("Objectives: Activated '{}'", ev.objectiveId);
+                                      }
                                   }
                               }
                           });
@@ -197,7 +215,15 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                           {
                               for (const auto& ev : m_pendingCounterIncrements)
                               {
-                                  (void)objectives.incrementObjectiveCounter(ev.objectiveId, ev.key, ev.delta);
+                                  if (objectives.incrementObjectiveCounter(ev.objectiveId, ev.key, ev.delta))
+                                  {
+                                      if (const auto* inst = objectives.tryGetObjective(ev.objectiveId))
+                                      {
+                                          const auto it  = inst->counters.find(ev.key);
+                                          const auto val = (it != inst->counters.end()) ? it->second : 0;
+                                          LOG_INFO("Objectives: '{}' counter '{}' -> {}", ev.objectiveId, ev.key, val);
+                                      }
+                                  }
                               }
                           });
     }
@@ -282,6 +308,9 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                                           else if (rule.action == Objectives::TriggerAction::IncrementCounter)
                                           {
                                               inst.counters[rule.key] += rule.delta;
+                                              const auto it  = inst.counters.find(rule.key);
+                                              const auto val = (it != inst.counters.end()) ? it->second : 0;
+                                              LOG_INFO("Objectives: '{}' counter '{}' -> {}", inst.id, rule.key, val);
                                           }
                                       }
                                   }
