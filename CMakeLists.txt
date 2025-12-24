@@ -151,6 +151,7 @@ set(ENGINE_SOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ENGINE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(ENGINE_INPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/Input")
 set(ENGINE_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/components")
+set(ENGINE_OBJECTIVES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/objectives")
 set(ENGINE_SYSTEM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/systems")
 set(ENGINE_UTILITY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/utility")
 set(ENGINE_PHYSICS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/physics")
@@ -198,6 +199,7 @@ target_include_directories(GameEngine
     $<BUILD_INTERFACE:${ENGINE_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${ENGINE_INPUT_DIR}>
     $<BUILD_INTERFACE:${ENGINE_COMPONENT_DIR}>
+    $<BUILD_INTERFACE:${ENGINE_OBJECTIVES_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}>
     $<BUILD_INTERFACE:${ENGINE_SYSTEM_DIR}/serialization>
     $<BUILD_INTERFACE:${ENGINE_UTILITY_DIR}>
@@ -206,6 +208,7 @@ target_include_directories(GameEngine
     $<INSTALL_INTERFACE:include/GameEngine/include>
     $<INSTALL_INTERFACE:include/GameEngine/include/Input>
     $<INSTALL_INTERFACE:include/GameEngine/components>
+    $<INSTALL_INTERFACE:include/GameEngine/objectives>
     $<INSTALL_INTERFACE:include/GameEngine/systems>
     $<INSTALL_INTERFACE:include/GameEngine/systems/serialization>
     $<INSTALL_INTERFACE:include/GameEngine/utility>
@@ -311,13 +314,39 @@ if(GAMEENGINE_INSTALL)
     )
 
     # Install headers
+    # 1) Install top-level public headers + Input/* into include/GameEngine/include
+    #    (exclude subfolders that are installed separately to keep the package tidy).
     install(DIRECTORY
-        ${ENGINE_INCLUDE_DIR}
-        ${ENGINE_COMPONENT_DIR}
-        ${ENGINE_SYSTEM_DIR}
-        ${ENGINE_UTILITY_DIR}
-        ${ENGINE_PHYSICS_DIR}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine
+        ${ENGINE_INCLUDE_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/include
+        FILES_MATCHING PATTERN "*.h"
+        PATTERN "components" EXCLUDE
+        PATTERN "systems" EXCLUDE
+        PATTERN "utility" EXCLUDE
+        PATTERN "physics" EXCLUDE
+        PATTERN "objectives" EXCLUDE
+    )
+
+    # 2) Install structured subfolders so consumers can include headers without a prefix
+    #    when we add those subfolders to INTERFACE_INCLUDE_DIRECTORIES.
+    install(DIRECTORY ${ENGINE_COMPONENT_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/components
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(DIRECTORY ${ENGINE_OBJECTIVES_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/objectives
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(DIRECTORY ${ENGINE_SYSTEM_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/systems
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(DIRECTORY ${ENGINE_UTILITY_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/utility
+        FILES_MATCHING PATTERN "*.h"
+    )
+    install(DIRECTORY ${ENGINE_PHYSICS_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/GameEngine/physics
         FILES_MATCHING PATTERN "*.h"
     )
 

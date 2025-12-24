@@ -8,10 +8,14 @@
 #include <ScriptTypeRegistry.h>
 #include <SystemLocator.h>
 
+#include <ObjectiveEvents.h>
+#include <ObjectiveRegistry.h>
+
 #include <chrono>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <vector>
 
 #include "AudioManager.h"
 #include "AudioManagerBehaviour.h"
@@ -100,6 +104,33 @@ int main()
         (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
         (void)Example::spawnCameraController(world, "Main");
         (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
+
+        // --- Objectives demo (data-driven) ---
+        {
+            std::vector<std::string> errors;
+            const bool               ok = engine.getObjectiveRegistry().loadFromDirectory("assets/objectives", &errors);
+            if (!ok)
+            {
+                LOG_ERROR_CONSOLE("ObjectiveRegistry: failed to load objectives");
+            }
+            else
+            {
+                LOG_INFO("ObjectiveRegistry: loaded {} objectives", engine.getObjectiveRegistry().size());
+            }
+            for (const auto& e : errors)
+            {
+                LOG_ERROR_CONSOLE("{}", e);
+            }
+
+            const Entity objectiveState = world.createEntity();
+            world.components().add<Components::CName>(objectiveState, std::string("ObjectiveState"));
+            world.components().add<Components::CObjectives>(objectiveState);
+
+            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.move_forward")});
+            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.rotate")});
+            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.reverse")});
+            world.events().emit(Objectives::ObjectiveActivate{std::string("example.objective.boat.hit_10_barrels")});
+        }
 
         // Save/load demo + mouse picking demo.
         // Save files resolve to: <exe_dir>/saved_games/<slot>.json

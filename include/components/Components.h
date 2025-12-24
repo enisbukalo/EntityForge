@@ -28,6 +28,7 @@
 // Utility / other components
 #include "CMaterial.h"
 #include "CName.h"
+#include "CObjectives.h"
 #include "CShader.h"
 #include "CTexture.h"
 

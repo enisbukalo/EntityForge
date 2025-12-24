@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Components.h>
+#include <EventBus.h>
 
 #include <string>
 
@@ -47,12 +48,22 @@ private:
     float m_spraySpeedBoostFactor   = 0.5f;
 
     // --- Authored effect entity names (CName) ---
-    std::string m_bubbleTrailName = "BoatBubbleTrail";
-    std::string m_hullSprayName   = "BoatHullSpray";
+    std::string m_bubbleTrailName  = "BoatBubbleTrail";
+    std::string m_hullSprayName    = "BoatHullSpray";
+    std::string m_barrelSensorName = "BoatBarrelSensor";
 
     // --- Cached effect entities ---
-    Entity m_bubbleTrail = Entity::null();
-    Entity m_hullSpray   = Entity::null();
+    Entity m_bubbleTrail  = Entity::null();
+    Entity m_hullSpray    = Entity::null();
+    Entity m_barrelSensor = Entity::null();
+
+    // --- Objectives demo state ---
+    bool m_sentMoveForwardSignal = false;
+    bool m_sentRotateSignal      = false;
+    bool m_sentReverseSignal     = false;
+
+    std::int64_t       m_barrelsHitCount = 0;
+    ScopedSubscription m_triggerEnterSub;
 };
 
 }  // namespace Example

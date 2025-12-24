@@ -61,6 +61,7 @@ Entity spawnBarrel(World& world, const Vec2& position)
 {
     Entity barrel = world.createEntity();
 
+    world.components().add<Components::CName>(barrel, std::string("Barrel"));
     world.components().add<Components::CTransform>(barrel, position, Vec2{1.0f, 1.0f}, 0.0f);
     world.components().add<Components::CTexture>(barrel, "assets/textures/barrel.png");
     world.components().add<Components::CRenderable>(barrel, Components::VisualType::Sprite, Color::White, kBarrelZIndex, true);

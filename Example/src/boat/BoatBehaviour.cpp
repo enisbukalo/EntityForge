@@ -12,6 +12,9 @@
 #include <SystemLocator.h>
 #include <World.h>
 
+#include <ObjectiveEvents.h>
+#include <TriggerEvents.h>
+
 namespace Example
 {
 
@@ -45,6 +48,30 @@ void BoatBehaviour::onCreate(Entity self, World& world)
 
     setupFixedMovement(self, world);
 
+    // Count barrel overlaps via sensor events and complete the demo objective at 10.
+    m_triggerEnterSub = ScopedSubscription(world.events(),
+                                           world.events().subscribe<Physics::TriggerEnter>(
+                                               [this](const Physics::TriggerEnter& ev, World& w)
+                                               {
+                                                   if (!m_barrelSensor.isValid() || ev.triggerEntity != m_barrelSensor)
+                                                   {
+                                                       return;
+                                                   }
+
+                                                   const auto* otherName = w.get<Components::CName>(ev.otherEntity);
+                                                   if (!otherName || otherName->name != "Barrel")
+                                                   {
+                                                       return;
+                                                   }
+
+                                                   ++m_barrelsHitCount;
+                                                   if (m_barrelsHitCount == 10)
+                                                   {
+                                                       w.events().emit(Objectives::ObjectiveSignal{
+                                                           std::string("example.signal.boat.hit_10_barrels")});
+                                                   }
+                                               }));
+
     LOG_INFO_CONSOLE("Controls:");
     LOG_INFO_CONSOLE("  WASD : Move player boat (W/S = forward/back, A/D = rotate)");
 }
@@ -65,6 +92,27 @@ void BoatBehaviour::onUpdate(float /*deltaTime*/, Entity self, World& world)
 
     const bool forward  = input->isActionActive("MoveForward");
     const bool backward = input->isActionActive("MoveBackward");
+    const bool left     = input->isActionActive("RotateLeft");
+    const bool right    = input->isActionActive("RotateRight");
+
+    // --- Objectives demo: emit signals once when controls are used ---
+    if (forward && !m_sentMoveForwardSignal)
+    {
+        m_sentMoveForwardSignal = true;
+        world.events().emit(Objectives::ObjectiveSignal{std::string("example.signal.boat.move_forward")});
+    }
+
+    if ((left || right) && !m_sentRotateSignal)
+    {
+        m_sentRotateSignal = true;
+        world.events().emit(Objectives::ObjectiveSignal{std::string("example.signal.boat.rotate")});
+    }
+
+    if (backward && !m_sentReverseSignal)
+    {
+        m_sentReverseSignal = true;
+        world.events().emit(Objectives::ObjectiveSignal{std::string("example.signal.boat.reverse")});
+    }
 
     if (forward || backward)
     {
@@ -128,6 +176,10 @@ void BoatBehaviour::ensureEffectEntities(World& world)
     if (!m_hullSpray.isValid())
     {
         m_hullSpray = findEntityByName(world, m_hullSprayName);
+    }
+    if (!m_barrelSensor.isValid())
+    {
+        m_barrelSensor = findEntityByName(world, m_barrelSensorName);
     }
 }
 
@@ -234,6 +286,15 @@ void BoatBehaviour::setupFixedMovement(Entity self, World& world)
             if (m_hullSpray.isValid())
             {
                 if (Components::CTransform* t = components.tryGet<Components::CTransform>(m_hullSpray))
+                {
+                    t->setPosition(boatT->getPosition());
+                    t->setRotation(boatT->getRotation());
+                }
+            }
+
+            if (m_barrelSensor.isValid())
+            {
+                if (Components::CTransform* t = components.tryGet<Components::CTransform>(m_barrelSensor))
                 {
                     t->setPosition(boatT->getPosition());
                     t->setRotation(boatT->getRotation());

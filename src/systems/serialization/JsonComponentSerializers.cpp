@@ -250,6 +250,31 @@ std::string actionTriggerToString(ActionTrigger t)
     return "Pressed";
 }
 
+std::string objectiveStatusToString(Components::ObjectiveStatus s)
+{
+    using OS = Components::ObjectiveStatus;
+    switch (s)
+    {
+        case OS::Inactive:
+            return "Inactive";
+        case OS::InProgress:
+            return "InProgress";
+        case OS::Completed:
+            return "Completed";
+    }
+    return "Inactive";
+}
+
+Components::ObjectiveStatus objectiveStatusFromJson(const json& j)
+{
+    static const std::unordered_map<std::string, Components::ObjectiveStatus> byName = {
+        {"Inactive", Components::ObjectiveStatus::Inactive},
+        {"InProgress", Components::ObjectiveStatus::InProgress},
+        {"Completed", Components::ObjectiveStatus::Completed},
+    };
+    return enumFromIntOrString(j, Components::ObjectiveStatus::Inactive, byName);
+}
+
 ActionTrigger actionTriggerFromJson(const json& j)
 {
     static const std::unordered_map<std::string, ActionTrigger> byName = {
@@ -1000,6 +1025,131 @@ void registerBuiltInJsonComponentSerializers(ComponentSerializationRegistry& reg
                     LOG_WARN("SaveGame: script type '{}' does not implement ISerializableScript; ignoring saved fields", scriptType);
                 }
             }
+        });
+
+    // CObjectives: save objective runtime state.
+    registry.registerComponent(
+        "CObjectives",
+        [](const World& w, Entity e) { return w.has<Components::CObjectives>(e); },
+        [](const World& w, Entity e, const SaveContext& /*ctx*/) -> json
+        {
+            const auto* c               = w.get<Components::CObjectives>(e);
+            json        arr             = json::array();
+            json        managerCounters = json::object();
+            json        managerFlags    = json::object();
+            if (c)
+            {
+                for (const auto& [key, value] : c->managerCounters)
+                {
+                    managerCounters[key] = value;
+                }
+                for (const auto& [flag, value] : c->managerFlags)
+                {
+                    managerFlags[flag] = value;
+                }
+
+                for (const auto& o : c->objectives)
+                {
+                    json counters = json::object();
+                    for (const auto& [key, value] : o.counters)
+                    {
+                        counters[key] = value;
+                    }
+
+                    json prereq = json::array();
+                    for (const auto& p : o.prerequisites)
+                    {
+                        prereq.push_back(p);
+                    }
+
+                    arr.push_back(json{{"id", o.id},
+                                       {"title", o.title},
+                                       {"description", o.description},
+                                       {"status", objectiveStatusToString(o.status)},
+                                       {"rewardGranted", o.rewardGranted},
+                                       {"onComplete", o.onComplete},
+                                       {"prerequisites", std::move(prereq)},
+                                       {"counters", std::move(counters)}});
+                }
+            }
+            return json{{"managerCounters", std::move(managerCounters)},
+                        {"managerFlags", std::move(managerFlags)},
+                        {"objectives", std::move(arr)}};
+        },
+        [](World& w, Entity e, const json& data, const LoadContext& /*ctx*/)
+        {
+            Components::CObjectives c;
+
+            if (data.contains("managerCounters") && data["managerCounters"].is_object())
+            {
+                for (auto it = data["managerCounters"].begin(); it != data["managerCounters"].end(); ++it)
+                {
+                    if (!it.key().empty() && it.value().is_number_integer())
+                    {
+                        c.managerCounters[it.key()] = it.value().get<std::int64_t>();
+                    }
+                }
+            }
+
+            if (data.contains("managerFlags") && data["managerFlags"].is_object())
+            {
+                for (auto it = data["managerFlags"].begin(); it != data["managerFlags"].end(); ++it)
+                {
+                    if (!it.key().empty() && it.value().is_boolean())
+                    {
+                        c.managerFlags[it.key()] = it.value().get<bool>();
+                    }
+                }
+            }
+
+            const auto objectivesJson = data.contains("objectives") ? data["objectives"] : json{};
+            if (objectivesJson.is_array())
+            {
+                for (const auto& oj : objectivesJson)
+                {
+                    if (!oj.is_object())
+                    {
+                        continue;
+                    }
+
+                    Components::ObjectiveInstance inst;
+                    inst.id            = oj.value("id", std::string{});
+                    inst.title         = oj.value("title", std::string{});
+                    inst.description   = oj.value("description", std::string{});
+                    inst.status        = objectiveStatusFromJson(oj.value("status", json{}));
+                    inst.rewardGranted = oj.value("rewardGranted", inst.rewardGranted);
+                    inst.onComplete    = oj.value("onComplete", std::string{});
+
+                    if (oj.contains("prerequisites") && oj["prerequisites"].is_array())
+                    {
+                        for (const auto& pj : oj["prerequisites"])
+                        {
+                            if (pj.is_string())
+                            {
+                                inst.prerequisites.push_back(pj.get<std::string>());
+                            }
+                        }
+                    }
+
+                    if (oj.contains("counters") && oj["counters"].is_object())
+                    {
+                        for (auto it = oj["counters"].begin(); it != oj["counters"].end(); ++it)
+                        {
+                            if (!it.key().empty() && it.value().is_number_integer())
+                            {
+                                inst.counters[it.key()] = it.value().get<std::int64_t>();
+                            }
+                        }
+                    }
+
+                    if (!inst.id.empty())
+                    {
+                        c.objectives.push_back(std::move(inst));
+                    }
+                }
+            }
+
+            w.add<Components::CObjectives>(e, std::move(c));
         });
 }
 

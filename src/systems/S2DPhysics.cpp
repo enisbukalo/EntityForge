@@ -12,6 +12,8 @@
 #include "Vec2.h"
 #include "World.h"
 
+#include <TriggerEvents.h>
+
 namespace Systems
 {
 
@@ -174,6 +176,65 @@ void S2DPhysics::update(float deltaTime, World& world)
 
     b2World_Step(m_worldId, m_timeStep, m_subStepCount);
 
+    // Drain Box2D sensor overlap events after stepping and republish via the engine EventBus.
+    // EventBus delivery is staged (pumped by the engine), so these will be visible deterministically
+    // the next time systems pump events.
+    if (m_world)
+    {
+        const b2SensorEvents sensorEvents = b2World_GetSensorEvents(m_worldId);
+
+        auto getEntityFromShapeId = [this](b2ShapeId shapeId) -> Entity
+        {
+            if (!b2Shape_IsValid(shapeId))
+            {
+                return Entity::null();
+            }
+
+            const b2BodyId bodyId = b2Shape_GetBody(shapeId);
+            if (!b2Body_IsValid(bodyId))
+            {
+                return Entity::null();
+            }
+
+            const void* userData = b2Body_GetUserData(bodyId);
+            if (userData == nullptr)
+            {
+                return Entity::null();
+            }
+
+            const std::uintptr_t packed = reinterpret_cast<std::uintptr_t>(userData);
+            const auto           idx    = static_cast<std::uint32_t>(packed & 0xffffffffu);
+            const auto           gen    = static_cast<std::uint32_t>((packed >> 32) & 0xffffffffu);
+            const Entity         e{idx, gen};
+
+            return (m_world && m_world->isAlive(e)) ? e : Entity::null();
+        };
+
+        for (int i = 0; i < sensorEvents.beginCount; ++i)
+        {
+            const b2SensorBeginTouchEvent& ev            = sensorEvents.beginEvents[i];
+            const Entity                   triggerEntity = getEntityFromShapeId(ev.sensorShapeId);
+            const Entity                   otherEntity   = getEntityFromShapeId(ev.visitorShapeId);
+
+            if (triggerEntity.isValid() && otherEntity.isValid())
+            {
+                m_world->events().emit(Physics::TriggerEnter{triggerEntity, otherEntity});
+            }
+        }
+
+        for (int i = 0; i < sensorEvents.endCount; ++i)
+        {
+            const b2SensorEndTouchEvent& ev            = sensorEvents.endEvents[i];
+            const Entity                 triggerEntity = getEntityFromShapeId(ev.sensorShapeId);
+            const Entity                 otherEntity   = getEntityFromShapeId(ev.visitorShapeId);
+
+            if (triggerEntity.isValid() && otherEntity.isValid())
+            {
+                m_world->events().emit(Physics::TriggerExit{triggerEntity, otherEntity});
+            }
+        }
+    }
+
     components.view2<::Components::CTransform, ::Components::CPhysicsBody2D>(
         [this](Entity entity, ::Components::CTransform& transform, ::Components::CPhysicsBody2D& body)
         {
@@ -205,7 +266,10 @@ b2BodyId S2DPhysics::createBody(Entity entity, const b2BodyDef& bodyDef)
     b2BodyId bodyId = b2CreateBody(m_worldId, &bodyDef);
     if (entity.isValid() && b2Body_IsValid(bodyId))
     {
-        b2Body_SetUserData(bodyId, reinterpret_cast<void*>(static_cast<uintptr_t>(entity.index)));
+        // Store the full entity handle (index + generation) so contacts can be mapped reliably.
+        const std::uintptr_t packed = (static_cast<std::uintptr_t>(entity.generation) << 32)
+                                      | static_cast<std::uintptr_t>(entity.index);
+        b2Body_SetUserData(bodyId, reinterpret_cast<void*>(packed));
     }
     return bodyId;
 }
@@ -296,7 +360,9 @@ void S2DPhysics::ensureShapesForEntity(Entity entity, const ::Components::CColli
     shapeDef.material.friction    = collider.friction;
     shapeDef.material.restitution = collider.restitution;
     shapeDef.isSensor             = collider.sensor;
-    shapeDef.enableSensorEvents   = collider.sensor;
+    // Box2D v3 requires explicit opt-in for sensor overlap events.
+    // Enable for all shapes so sensors can report overlaps with any visitor.
+    shapeDef.enableSensorEvents = true;
 
     auto& createdShapes = m_shapes[entity];
 
@@ -383,12 +449,13 @@ void S2DPhysics::ensureShapesForEntity(Entity entity, const ::Components::CColli
                 mat.friction          = collider.friction;
                 mat.restitution       = collider.restitution;
 
-                b2ChainDef chainDef         = b2DefaultChainDef();
-                chainDef.points             = pts;
-                chainDef.count              = 4;
-                chainDef.materials          = &mat;
-                chainDef.materialCount      = 1;
-                chainDef.enableSensorEvents = collider.sensor;
+                b2ChainDef chainDef    = b2DefaultChainDef();
+                chainDef.points        = pts;
+                chainDef.count         = 4;
+                chainDef.materials     = &mat;
+                chainDef.materialCount = 1;
+                // Enable sensor overlap events regardless of whether this chain is a sensor.
+                chainDef.enableSensorEvents = true;
                 chainDef.isLoop             = false;
 
                 b2ChainId chainId = b2CreateChain(bodyId, &chainDef);
@@ -578,6 +645,8 @@ void S2DPhysics::syncFromTransform(Entity entity, const ::Components::CTransform
     {
         b2Body_SetTransform(bodyId, {transform.position.x, transform.position.y}, b2MakeRot(transform.rotation));
         b2Body_SetLinearVelocity(bodyId, {transform.velocity.x, transform.velocity.y});
+        // Ensure the body participates in broadphase/contact updates after being moved externally.
+        b2Body_SetAwake(bodyId, true);
     }
 }
 
