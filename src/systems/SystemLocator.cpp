@@ -4,6 +4,7 @@
 #include "SAudio.h"
 #include "SCamera.h"
 #include "SInput.h"
+#include "SObjectives.h"
 #include "SParticle.h"
 #include "SRenderer.h"
 
@@ -12,12 +13,13 @@ namespace Systems
 
 namespace
 {
-SInput*     g_input    = nullptr;
-S2DPhysics* g_physics  = nullptr;
-SRenderer*  g_renderer = nullptr;
-SParticle*  g_particle = nullptr;
-SAudio*     g_audio    = nullptr;
-SCamera*    g_camera   = nullptr;
+SInput*      g_input      = nullptr;
+S2DPhysics*  g_physics    = nullptr;
+SRenderer*   g_renderer   = nullptr;
+SParticle*   g_particle   = nullptr;
+SAudio*      g_audio      = nullptr;
+SCamera*     g_camera     = nullptr;
+SObjectives* g_objectives = nullptr;
 }  // namespace
 
 void SystemLocator::provideInput(SInput* input)
@@ -48,6 +50,11 @@ void SystemLocator::provideAudio(SAudio* audio)
 void SystemLocator::provideCamera(SCamera* camera)
 {
     g_camera = camera;
+}
+
+void SystemLocator::provideObjectives(SObjectives* objectives)
+{
+    g_objectives = objectives;
 }
 
 SInput& SystemLocator::input()
@@ -86,6 +93,12 @@ SCamera& SystemLocator::camera()
     return *g_camera;
 }
 
+SObjectives& SystemLocator::objectives()
+{
+    assert(g_objectives && "Objectives system not set");
+    return *g_objectives;
+}
+
 SInput* SystemLocator::tryInput()
 {
     return g_input;
@@ -114,6 +127,11 @@ SAudio* SystemLocator::tryAudio()
 SCamera* SystemLocator::tryCamera()
 {
     return g_camera;
+}
+
+SObjectives* SystemLocator::tryObjectives()
+{
+    return g_objectives;
 }
 
 }  // namespace Systems

@@ -8,10 +8,14 @@
 #include <Components.h>
 #include <SystemLocator.h>
 
+#include <objectives/ObjectiveRegistry.h>
+
 GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, uint8_t subStepCount, float timeStep, float pixelsPerMeter)
-    : m_renderer(std::make_unique<Systems::SRenderer>()),
+    : m_objectiveRegistry(std::make_unique<Objectives::ObjectiveRegistry>()),
+      m_renderer(std::make_unique<Systems::SRenderer>()),
       m_input(std::make_unique<Systems::SInput>()),
       m_script(std::make_unique<Systems::SScript>()),
+      m_objectives(std::make_unique<Systems::SObjectives>(m_objectiveRegistry.get())),
       m_physics(std::make_unique<Systems::S2DPhysics>()),
       m_camera(std::make_unique<Systems::SCamera>()),
       m_particle(std::make_unique<Systems::SParticle>()),
@@ -26,6 +30,7 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     Systems::SystemLocator::provideCamera(m_camera.get());
     Systems::SystemLocator::provideParticle(m_particle.get());
     Systems::SystemLocator::provideAudio(m_audio.get());
+    Systems::SystemLocator::provideObjectives(m_objectives.get());
 
     // Allow physics system to resolve component data without auxiliary maps
     m_physics->bindWorld(&m_world);
@@ -88,9 +93,10 @@ GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, 
     // Note: Users can re-initialize with different scale if needed
     m_particle->initialize(m_renderer->getWindow(), pixelsPerMeter);
 
-    // Maintain ordered list for per-frame updates (input -> scripts -> physics -> camera -> particle -> audio)
-    // Audio is marked as PostFlush via ISystem::stage().
-    m_systemOrder = {m_input.get(), m_script.get(), m_physics.get(), m_camera.get(), m_particle.get(), m_audio.get()};
+    // Maintain ordered list for per-frame updates (input -> scripts -> objectives -> physics -> camera -> particle ->
+    // audio) Audio is marked as PostFlush via ISystem::stage().
+    m_systemOrder = {
+        m_input.get(), m_script.get(), m_objectives.get(), m_physics.get(), m_camera.get(), m_particle.get(), m_audio.get()};
 
     LOG_INFO("All core systems initialized");
 }
@@ -289,6 +295,21 @@ Systems::SParticle& GameEngine::getParticleSystem()
     return *m_particle;
 }
 
+Systems::SObjectives& GameEngine::getObjectivesSystem()
+{
+    return *m_objectives;
+}
+
+Objectives::ObjectiveRegistry& GameEngine::getObjectiveRegistry()
+{
+    return *m_objectiveRegistry;
+}
+
+const Objectives::ObjectiveRegistry& GameEngine::getObjectiveRegistry() const
+{
+    return *m_objectiveRegistry;
+}
+
 void GameEngine::registerComponentTypes()
 {
     // Register stable component names for diagnostics and tooling
@@ -308,6 +329,7 @@ void GameEngine::registerComponentTypes()
     m_world.registerTypeName<CNativeScript>("CNativeScript");
     m_world.registerTypeName<CAudioSource>("CAudioSource");
     m_world.registerTypeName<CAudioListener>("CAudioListener");
+    m_world.registerTypeName<CObjectives>("CObjectives");
 
     validateComponentTypeNames();
 }
@@ -347,4 +369,5 @@ void GameEngine::validateComponentTypeNames()
     validate(CNativeScript{}, "CNativeScript");
     validate(CAudioSource{}, "CAudioSource");
     validate(CAudioListener{}, "CAudioListener");
+    validate(CObjectives{}, "CObjectives");
 }
