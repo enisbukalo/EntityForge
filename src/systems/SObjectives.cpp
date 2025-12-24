@@ -188,7 +188,7 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                                       inst.onComplete    = def->onComplete;
                                       if (inst.status == Components::ObjectiveStatus::Inactive)
                                       {
-                                          inst.status = Components::ObjectiveStatus::InProgress;
+                                          inst.status       = Components::ObjectiveStatus::InProgress;
                                           const auto detail = inst.title.empty() ? std::string{} : (" - " + inst.title);
                                           LOG_INFO("Objectives: Activated '{}'{}", inst.id, detail);
                                       }
@@ -197,7 +197,7 @@ void SObjectives::update(float /*deltaTime*/, World& world)
                                   {
                                       // Fallback: allow activation using runtime-only instance prerequisites.
                                       const auto* before = objectives.tryGetObjective(ev.objectiveId);
-                                      const auto  prev   = before ? before->status : Components::ObjectiveStatus::Inactive;
+                                      const auto prev = before ? before->status : Components::ObjectiveStatus::Inactive;
                                       if (objectives.activateObjective(ev.objectiveId) && prev == Components::ObjectiveStatus::Inactive)
                                       {
                                           LOG_INFO("Objectives: Activated '{}'", ev.objectiveId);

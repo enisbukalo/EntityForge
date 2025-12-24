@@ -3,8 +3,8 @@
 #include <EventBus.h>
 
 #include <ObjectiveEvents.h>
-#include <TriggerEvents.h>
 #include <System.h>
+#include <TriggerEvents.h>
 
 #include <vector>
 
