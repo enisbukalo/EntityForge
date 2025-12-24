@@ -7,7 +7,7 @@
 #include <World.h>
 
 #include <Components.h>
-#include <components/CObjectives.h>
+#include <CObjectives.h>
 
 #include <filesystem>
 

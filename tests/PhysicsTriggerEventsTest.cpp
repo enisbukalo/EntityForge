@@ -5,7 +5,7 @@
 #include <World.h>
 
 #include <Components.h>
-#include <physics/TriggerEvents.h>
+#include <TriggerEvents.h>
 
 #include <vector>
 

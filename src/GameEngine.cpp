@@ -8,7 +8,7 @@
 #include <Components.h>
 #include <SystemLocator.h>
 
-#include <objectives/ObjectiveRegistry.h>
+#include <ObjectiveRegistry.h>
 
 GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, uint8_t subStepCount, float timeStep, float pixelsPerMeter)
     : m_objectiveRegistry(std::make_unique<Objectives::ObjectiveRegistry>()),

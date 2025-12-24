@@ -12,7 +12,7 @@
 #include "Vec2.h"
 #include "World.h"
 
-#include <physics/TriggerEvents.h>
+#include <TriggerEvents.h>
 
 namespace Systems
 {

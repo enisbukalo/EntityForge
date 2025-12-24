@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #define private public
-#include "systems/SInput.h"
+#include "SInput.h"
 #undef private
 
 #include "EventBus.h"

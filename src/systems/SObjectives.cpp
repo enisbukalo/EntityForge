@@ -3,12 +3,12 @@
 #include <Logger.h>
 #include <World.h>
 
-#include <components/CName.h>
-#include <components/CObjectives.h>
-#include <objectives/ObjectiveDefinition.h>
-#include <objectives/ObjectiveEvents.h>
-#include <objectives/ObjectiveRegistry.h>
-#include <physics/TriggerEvents.h>
+#include <CName.h>
+#include <CObjectives.h>
+#include <ObjectiveDefinition.h>
+#include <ObjectiveEvents.h>
+#include <ObjectiveRegistry.h>
+#include <TriggerEvents.h>
 
 namespace
 {

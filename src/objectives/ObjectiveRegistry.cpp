@@ -1,4 +1,4 @@
-#include <objectives/ObjectiveRegistry.h>
+#include <ObjectiveRegistry.h>
 
 #include <FileUtilities.h>
 

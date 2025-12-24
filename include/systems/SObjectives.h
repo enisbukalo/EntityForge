@@ -2,9 +2,9 @@
 
 #include <EventBus.h>
 
-#include <objectives/ObjectiveEvents.h>
-#include <physics/TriggerEvents.h>
-#include <systems/System.h>
+#include <ObjectiveEvents.h>
+#include <TriggerEvents.h>
+#include <System.h>
 
 #include <vector>
 
@@ -19,7 +19,7 @@ namespace Systems
 {
 
 /**
- * @brief Objectives/quests runtime system.
+ * @brief quests runtime system.
  *
  * Subscribes to objective-related events and updates Components::CObjectives.
  * Subscriptions are registered lazily on first update() so they exist before the first EventBus pump.

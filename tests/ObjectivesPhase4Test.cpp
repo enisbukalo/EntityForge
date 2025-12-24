@@ -4,11 +4,11 @@
 
 #include <World.h>
 
-#include <components/CName.h>
-#include <components/CObjectives.h>
-#include <objectives/ObjectiveEvents.h>
-#include <objectives/ObjectiveRegistry.h>
-#include <physics/TriggerEvents.h>
+#include <CName.h>
+#include <CObjectives.h>
+#include <ObjectiveEvents.h>
+#include <ObjectiveRegistry.h>
+#include <TriggerEvents.h>
 
 #include <filesystem>
 #include <fstream>

@@ -161,6 +161,25 @@ Entity spawnBoat(World& world)
             });
             world.components().add<Components::CParticleEmitter>(hullSpray, e);
         }
+
+        // Barrel overlap sensor (separate entity so the boat can keep a non-sensor collider).
+        const Entity barrelSensor = world.createEntity();
+        world.components().add<Components::CName>(barrelSensor, std::string("BoatBarrelSensor"));
+        world.components().add<Components::CTransform>(barrelSensor, pos, Vec2{1.0f, 1.0f}, rot);
+
+        Components::CPhysicsBody2D* sensorBody = world.components().add<Components::CPhysicsBody2D>(barrelSensor);
+        sensorBody->bodyType                   = Components::BodyType::Kinematic;
+        sensorBody->fixedRotation              = true;
+        sensorBody->linearDamping              = 0.0f;
+        sensorBody->angularDamping             = 0.0f;
+        sensorBody->gravityScale               = 0.0f;
+
+        Components::CCollider2D* sensorCollider = world.components().add<Components::CCollider2D>(barrelSensor);
+        sensorCollider->sensor                  = true;
+        sensorCollider->density                 = 0.0f;
+        sensorCollider->friction                = 0.0f;
+        sensorCollider->restitution             = 0.0f;
+        sensorCollider->createCircle(0.65f);
     }
 
     Components::CNativeScript* script = world.components().add<Components::CNativeScript>(boat);

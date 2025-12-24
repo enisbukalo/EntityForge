@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <objectives/ObjectiveDefinition.h>
+#include <ObjectiveDefinition.h>
 
 namespace Objectives
 {

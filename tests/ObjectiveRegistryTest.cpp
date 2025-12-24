@@ -2,7 +2,7 @@
 
 #include <FileUtilities.h>
 
-#include <objectives/ObjectiveRegistry.h>
+#include <ObjectiveRegistry.h>
 
 #include <filesystem>
 #include <fstream>
