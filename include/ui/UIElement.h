@@ -1,7 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <UIDrawList.h>
@@ -117,6 +120,25 @@ public:
         return m_visible;
     }
 
+    // Phase 3: input/hit-testing flags
+    void setHitTestVisible(bool hitTestVisible)
+    {
+        m_hitTestVisible = hitTestVisible;
+    }
+    bool isHitTestVisible() const
+    {
+        return m_hitTestVisible;
+    }
+
+    void setInteractable(bool interactable)
+    {
+        m_interactable = interactable;
+    }
+    bool isInteractable() const
+    {
+        return m_interactable;
+    }
+
     UITransform& transform()
     {
         return m_transform;
@@ -192,13 +214,23 @@ public:
             m_layoutDirty       = false;
         }
 
-        for (const auto& child : m_children)
-        {
-            if (child)
-            {
-                child->layout(m_computedRectPx);
-            }
-        }
+        onLayoutChildren(m_computedRectPx);
+    }
+
+    // Phase 4: container widgets can assign an absolute rect to a child element.
+    // This bypasses the anchor/pivot/offset computation for this element, but still
+    // lays out its children relative to the assigned rect.
+    void layoutAssigned(const UIRect& absoluteRectPx) const
+    {
+        m_computedRectPx = absoluteRectPx;
+
+        // Treat the assigned rect as the last parent rect so subsequent conventional
+        // layout calls won't accidentally skip child layout due to stale parent tracking.
+        m_lastParentRectPx  = absoluteRectPx;
+        m_hasLastParentRect = true;
+        m_layoutDirty       = false;
+
+        onLayoutChildren(m_computedRectPx);
     }
 
     UIRect rectPx() const
@@ -231,13 +263,108 @@ public:
         }
     }
 
+    // Phase 3: hit testing (public API)
+    UIElement* hitTest(const Vec2& pointPx)
+    {
+        return const_cast<UIElement*>(std::as_const(*this).hitTest(pointPx));
+    }
+    const UIElement* hitTest(const Vec2& pointPx) const
+    {
+        const UIElement* best      = nullptr;
+        int              bestZ     = std::numeric_limits<int>::min();
+        uint64_t         bestOrder = 0;
+        uint64_t         order     = 0;
+        hitTestImpl(pointPx, best, bestZ, bestOrder, order);
+        return best;
+    }
+
+    // Phase 3: input notifications (public wrappers)
+    void notifyHoverChanged(bool hovered)
+    {
+        onHoverChanged(hovered);
+    }
+    void notifyActiveChanged(bool active)
+    {
+        onActiveChanged(active);
+    }
+    void notifyFocusChanged(bool focused)
+    {
+        onFocusChanged(focused);
+    }
+    bool click()
+    {
+        return onClick();
+    }
+
 protected:
     virtual void onRender(UIDrawList& drawList) const
     {
         (void)drawList;
     }
 
+    // Phase 4: container widgets override this to compute child rectangles.
+    virtual void onLayoutChildren(const UIRect& selfRectPx) const
+    {
+        for (const auto& child : m_children)
+        {
+            if (child)
+            {
+                child->layout(selfRectPx);
+            }
+        }
+    }
+
+    const std::vector<std::unique_ptr<UIElement>>& children() const
+    {
+        return m_children;
+    }
+
+    // Phase 3: input hooks (override points)
+    virtual void onHoverChanged(bool /*hovered*/) {}
+    virtual void onActiveChanged(bool /*active*/) {}
+    virtual void onFocusChanged(bool /*focused*/) {}
+    virtual bool onClick()
+    {
+        return false;
+    }
+
 private:
+    static bool containsPoint(const UIRect& rect, const Vec2& pointPx)
+    {
+        const float minX = std::min(rect.x, rect.x + rect.w);
+        const float maxX = std::max(rect.x, rect.x + rect.w);
+        const float minY = std::min(rect.y, rect.y + rect.h);
+        const float maxY = std::max(rect.y, rect.y + rect.h);
+        return (pointPx.x >= minX) && (pointPx.x <= maxX) && (pointPx.y >= minY) && (pointPx.y <= maxY);
+    }
+
+    void hitTestImpl(const Vec2& pointPx, const UIElement*& best, int& bestZ, uint64_t& bestOrder, uint64_t& order) const
+    {
+        if (m_visible && m_hitTestVisible && m_interactable)
+        {
+            const UIRect r = rectPx();
+            if (containsPoint(r, pointPx))
+            {
+                const int z = transform().z;
+                if ((z > bestZ) || (z == bestZ && order >= bestOrder))
+                {
+                    best      = this;
+                    bestZ     = z;
+                    bestOrder = order;
+                }
+            }
+        }
+
+        ++order;
+        for (const auto& child : m_children)
+        {
+            if (child)
+            {
+                child->hitTestImpl(pointPx, best, bestZ, bestOrder, order);
+            }
+        }
+    }
+
     void markLayoutDirty() const
     {
         m_layoutDirty = true;
@@ -245,7 +372,9 @@ private:
 
     UITransform                             m_transform;
     UIStyle                                 m_style;
-    bool                                    m_visible = true;
+    bool                                    m_visible        = true;
+    bool                                    m_hitTestVisible = false;
+    bool                                    m_interactable   = true;
     std::vector<std::unique_ptr<UIElement>> m_children;
 
     // Phase 2 layout state (computed at render time)

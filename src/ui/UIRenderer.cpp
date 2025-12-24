@@ -84,6 +84,7 @@ void UIRenderer::render(const UIContext& context, Systems::SRenderer& renderer)
 
     const auto   winSize = window->getSize();
     const UIRect viewportRectPx{0.0f, 0.0f, static_cast<float>(winSize.x), static_cast<float>(winSize.y)};
+    context.setViewportRectPx(viewportRectPx);
     context.layout(viewportRectPx);
 
     UIDrawList drawList;

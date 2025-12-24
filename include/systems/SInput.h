@@ -43,6 +43,9 @@ private:
     std::vector<IInputListener*>                                           m_listenerPointers;
     ListenerId                                                             m_nextListenerId = 1;
 
+    // Optional filter invoked before dispatch/event emission. If it returns true, the event is consumed.
+    std::function<bool(const InputEvent&)> m_preDispatchFilter;
+
     // Helper to namespace actions per-entity so identical action names across entities don't collide
     std::string scopeAction(Entity entity, const std::string& actionName) const;
     void        registerControllerBindings(World& world);
@@ -72,6 +75,12 @@ public:
 
     void addListener(IInputListener* listener);
     void removeListener(IInputListener* listener);
+
+    // Phase 3: consumed-input hook (e.g., UI).
+    void setPreDispatchFilter(std::function<bool(const InputEvent&)> filter)
+    {
+        m_preDispatchFilter = std::move(filter);
+    }
 
     // Query APIs
     bool  isKeyDown(KeyCode key) const;

@@ -281,6 +281,19 @@ void GameEngine::render()
 void GameEngine::setUIContext(UI::UIContext* uiContext)
 {
     m_uiContext = uiContext;
+
+    if (m_input)
+    {
+        if (m_uiContext)
+        {
+            m_input->setPreDispatchFilter([this](const InputEvent& ev)
+                                          { return m_uiContext && m_uiContext->handleInputEvent(ev); });
+        }
+        else
+        {
+            m_input->setPreDispatchFilter({});
+        }
+    }
 }
 
 bool GameEngine::is_running() const

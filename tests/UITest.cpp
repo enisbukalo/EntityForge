@@ -2,9 +2,14 @@
 
 #include <cmath>
 
+#include <InputEvents.h>
+
 #include <UIContext.h>
+#include <UIButton.h>
+#include <UIHorizontalLayout.h>
 #include <UILabel.h>
 #include <UIPanel.h>
+#include <UIVerticalLayout.h>
 
 TEST(UIPhase1, PanelEmitsRectCommand)
 {
@@ -379,4 +384,270 @@ TEST(UIPhase2, NegativeSizeOffsetsArePreserved)
     EXPECT_FLOAT_EQ(r.y, 10.0f);
     EXPECT_FLOAT_EQ(r.w, -10.0f);
     EXPECT_FLOAT_EQ(r.h, -10.0f);
+}
+
+TEST(UIPhase3, HitTestPicksHigherZ)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto a = std::make_unique<UI::UIPanel>();
+    a->setPositionPx(0.0f, 0.0f);
+    a->setSizePx(50.0f, 50.0f);
+    a->setZ(1);
+    a->setHitTestVisible(true);
+
+    auto b = std::make_unique<UI::UIPanel>();
+    b->setPositionPx(0.0f, 0.0f);
+    b->setSizePx(50.0f, 50.0f);
+    b->setZ(2);
+    b->setHitTestVisible(true);
+
+    UI::UIElement* aPtr = a.get();
+    UI::UIElement* bPtr = b.get();
+
+    ui.root().addChild(std::move(a));
+    ui.root().addChild(std::move(b));
+
+    InputEvent ev{};
+    ev.type               = InputEventType::MouseMoved;
+    ev.mouseMove.position = Vec2i{10, 10};
+    (void)ui.handleInputEvent(ev);
+
+    EXPECT_EQ(ui.inputState().hovered, bPtr);
+    EXPECT_NE(ui.inputState().hovered, aPtr);
+}
+
+TEST(UIPhase3, HitTestTieUsesTraversalOrder)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto first = std::make_unique<UI::UIPanel>();
+    first->setPositionPx(0.0f, 0.0f);
+    first->setSizePx(50.0f, 50.0f);
+    first->setZ(0);
+    first->setHitTestVisible(true);
+
+    auto second = std::make_unique<UI::UIPanel>();
+    second->setPositionPx(0.0f, 0.0f);
+    second->setSizePx(50.0f, 50.0f);
+    second->setZ(0);
+    second->setHitTestVisible(true);
+
+    UI::UIElement* firstPtr  = first.get();
+    UI::UIElement* secondPtr = second.get();
+
+    ui.root().addChild(std::move(first));
+    ui.root().addChild(std::move(second));
+
+    InputEvent ev{};
+    ev.type               = InputEventType::MouseMoved;
+    ev.mouseMove.position = Vec2i{1, 1};
+    (void)ui.handleInputEvent(ev);
+
+    EXPECT_EQ(ui.inputState().hovered, secondPtr);
+    EXPECT_NE(ui.inputState().hovered, firstPtr);
+}
+
+TEST(UIPhase3, ButtonClickConsumesAndFiresCallback)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    int clicks = 0;
+    auto btn   = std::make_unique<UI::UIButton>();
+    btn->setPositionPx(0.0f, 0.0f);
+    btn->setSizePx(80.0f, 30.0f);
+    btn->onClick([&]() { ++clicks; });
+
+    ui.root().addChild(std::move(btn));
+
+    InputEvent move{};
+    move.type               = InputEventType::MouseMoved;
+    move.mouseMove.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(move));
+
+    InputEvent down{};
+    down.type          = InputEventType::MouseButtonPressed;
+    down.mouse.button  = MouseButton::Left;
+    down.mouse.position = Vec2i{10, 10};
+    EXPECT_TRUE(ui.handleInputEvent(down));
+
+    InputEvent up{};
+    up.type           = InputEventType::MouseButtonReleased;
+    up.mouse.button   = MouseButton::Left;
+    up.mouse.position = Vec2i{10, 10};
+    EXPECT_TRUE(ui.handleInputEvent(up));
+
+    EXPECT_EQ(clicks, 1);
+}
+
+TEST(UIPhase3, DisabledButtonDoesNotConsumeOrClick)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    int clicks = 0;
+    auto btn   = std::make_unique<UI::UIButton>();
+    btn->setPositionPx(0.0f, 0.0f);
+    btn->setSizePx(80.0f, 30.0f);
+    btn->onClick([&]() { ++clicks; });
+    btn->setEnabled(false);
+
+    ui.root().addChild(std::move(btn));
+
+    InputEvent down{};
+    down.type           = InputEventType::MouseButtonPressed;
+    down.mouse.button   = MouseButton::Left;
+    down.mouse.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(down));
+
+    InputEvent up{};
+    up.type           = InputEventType::MouseButtonReleased;
+    up.mouse.button   = MouseButton::Left;
+    up.mouse.position = Vec2i{10, 10};
+    EXPECT_FALSE(ui.handleInputEvent(up));
+
+    EXPECT_EQ(clicks, 0);
+}
+
+TEST(UIPhase4, VerticalLayoutStacksChildrenWithPaddingAndSpacing)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto vbox = std::make_unique<UI::UIVerticalLayout>();
+    vbox->setPositionPx(0.0f, 0.0f);
+    vbox->setSizePx(100.0f, 100.0f);
+    vbox->setPaddingPx(10.0f, 10.0f, 10.0f, 10.0f);
+    vbox->setSpacingPx(5.0f);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    auto c2 = std::make_unique<UI::UIPanel>();
+    c2->setSizePx(30.0f, 15.0f);
+
+    UI::UIElement* c1Ptr = c1.get();
+    UI::UIElement* c2Ptr = c2.get();
+
+    vbox->addChild(std::move(c1));
+    vbox->addChild(std::move(c2));
+    ui.root().addChild(std::move(vbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r1 = c1Ptr->rectPx();
+    const UI::UIRect r2 = c2Ptr->rectPx();
+
+    // Default cross-axis alignment is Stretch.
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 10.0f);
+    EXPECT_FLOAT_EQ(r1.w, 80.0f);
+    EXPECT_FLOAT_EQ(r1.h, 10.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 10.0f);
+    EXPECT_FLOAT_EQ(r2.y, 25.0f);
+    EXPECT_FLOAT_EQ(r2.w, 80.0f);
+    EXPECT_FLOAT_EQ(r2.h, 15.0f);
+}
+
+TEST(UIPhase4, VerticalLayoutCenterAlignUsesPreferredWidth)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto vbox = std::make_unique<UI::UIVerticalLayout>();
+    vbox->setPositionPx(0.0f, 0.0f);
+    vbox->setSizePx(100.0f, 40.0f);
+    vbox->setPaddingPx(10.0f, 0.0f, 10.0f, 0.0f);
+    vbox->setSpacingPx(0.0f);
+    vbox->setCrossAxisAlignment(UI::UIVerticalLayout::CrossAxisAlignment::Center);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    UI::UIElement* c1Ptr = c1.get();
+    vbox->addChild(std::move(c1));
+    ui.root().addChild(std::move(vbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r = c1Ptr->rectPx();
+    // Inner width is 80, so centered 20px wide child starts at 10 + (80-20)/2 = 40
+    EXPECT_FLOAT_EQ(r.x, 40.0f);
+    EXPECT_FLOAT_EQ(r.w, 20.0f);
+}
+
+TEST(UIPhase4, HorizontalLayoutStacksChildrenWithPaddingAndSpacing)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto hbox = std::make_unique<UI::UIHorizontalLayout>();
+    hbox->setPositionPx(0.0f, 0.0f);
+    hbox->setSizePx(120.0f, 40.0f);
+    hbox->setPaddingPx(10.0f, 10.0f, 10.0f, 10.0f);
+    hbox->setSpacingPx(5.0f);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    auto c2 = std::make_unique<UI::UIPanel>();
+    c2->setSizePx(30.0f, 15.0f);
+
+    UI::UIElement* c1Ptr = c1.get();
+    UI::UIElement* c2Ptr = c2.get();
+
+    hbox->addChild(std::move(c1));
+    hbox->addChild(std::move(c2));
+    ui.root().addChild(std::move(hbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r1 = c1Ptr->rectPx();
+    const UI::UIRect r2 = c2Ptr->rectPx();
+
+    // Default cross-axis alignment is Stretch.
+    EXPECT_FLOAT_EQ(r1.x, 10.0f);
+    EXPECT_FLOAT_EQ(r1.y, 10.0f);
+    EXPECT_FLOAT_EQ(r1.w, 20.0f);
+    EXPECT_FLOAT_EQ(r1.h, 20.0f);
+
+    EXPECT_FLOAT_EQ(r2.x, 35.0f);
+    EXPECT_FLOAT_EQ(r2.y, 10.0f);
+    EXPECT_FLOAT_EQ(r2.w, 30.0f);
+    EXPECT_FLOAT_EQ(r2.h, 20.0f);
+}
+
+TEST(UIPhase4, HorizontalLayoutEndAlignUsesPreferredHeight)
+{
+    UI::UIContext ui;
+    const UI::UIRect viewport{0.0f, 0.0f, 200.0f, 100.0f};
+    ui.setViewportRectPx(viewport);
+
+    auto hbox = std::make_unique<UI::UIHorizontalLayout>();
+    hbox->setPositionPx(0.0f, 0.0f);
+    hbox->setSizePx(120.0f, 40.0f);
+    hbox->setPaddingPx(0.0f, 10.0f, 0.0f, 10.0f);
+    hbox->setSpacingPx(0.0f);
+    hbox->setCrossAxisAlignment(UI::UIHorizontalLayout::CrossAxisAlignment::End);
+
+    auto c1 = std::make_unique<UI::UIPanel>();
+    c1->setSizePx(20.0f, 10.0f);
+    UI::UIElement* c1Ptr = c1.get();
+    hbox->addChild(std::move(c1));
+    ui.root().addChild(std::move(hbox));
+
+    ui.layout(viewport);
+
+    const UI::UIRect r = c1Ptr->rectPx();
+    // Inner height is 20, so end-aligned 10px tall child starts at 10 + (20-10) = 20
+    EXPECT_FLOAT_EQ(r.y, 20.0f);
+    EXPECT_FLOAT_EQ(r.h, 10.0f);
 }
