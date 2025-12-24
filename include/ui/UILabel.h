@@ -22,7 +22,8 @@ public:
 protected:
     void onRender(UIDrawList& drawList) const override
     {
-        const Vec2 pos = transform().positionPx;
+        const UIRect r = rectPx();
+        const Vec2   pos{r.x, r.y};
         drawList.addText(pos, m_text, style().textColor, style().fontPath, style().textSizePx, transform().z);
     }
 

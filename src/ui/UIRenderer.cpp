@@ -82,6 +82,10 @@ void UIRenderer::render(const UIContext& context, Systems::SRenderer& renderer)
     // UI is screen-space (pixels), so ensure default view.
     window->setView(window->getDefaultView());
 
+    const auto   winSize = window->getSize();
+    const UIRect viewportRectPx{0.0f, 0.0f, static_cast<float>(winSize.x), static_cast<float>(winSize.y)};
+    context.layout(viewportRectPx);
+
     UIDrawList drawList;
     context.root().render(drawList);
 
