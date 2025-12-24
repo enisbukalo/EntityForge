@@ -10,6 +10,9 @@
 
 #include <ObjectiveRegistry.h>
 
+#include <UIContext.h>
+#include <UIRenderer.h>
+
 GameEngine::GameEngine(const Systems::WindowConfig& windowConfig, Vec2 gravity, uint8_t subStepCount, float timeStep, float pixelsPerMeter)
     : m_objectiveRegistry(std::make_unique<Objectives::ObjectiveRegistry>()),
       m_renderer(std::make_unique<Systems::SRenderer>()),
@@ -249,6 +252,15 @@ void GameEngine::render()
 
     m_renderer->render(m_world);
 
+    if (m_uiContext)
+    {
+        if (!m_uiRenderer)
+        {
+            m_uiRenderer = std::make_unique<UI::UIRenderer>();
+        }
+        m_uiRenderer->render(*m_uiContext, *m_renderer);
+    }
+
     if (s_renderFrameIndex < 3)
     {
         LOG_INFO("Frame {}: render world end", s_renderFrameIndex);
@@ -264,6 +276,11 @@ void GameEngine::render()
     }
 
     ++s_renderFrameIndex;
+}
+
+void GameEngine::setUIContext(UI::UIContext* uiContext)
+{
+    m_uiContext = uiContext;
 }
 
 bool GameEngine::is_running() const

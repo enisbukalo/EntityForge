@@ -15,7 +15,12 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <vector>
+
+#include <UIContext.h>
+#include <UILabel.h>
+#include <UIPanel.h>
 
 #include "AudioManager.h"
 #include "AudioManagerBehaviour.h"
@@ -83,6 +88,30 @@ int main()
         LOG_INFO_CONSOLE("Creating GameEngine...");
 
         GameEngine engine(windowConfig, GRAVITY);
+
+        UI::UIContext ui;
+        engine.setUIContext(&ui);
+
+        {
+            auto panel = std::make_unique<UI::UIPanel>();
+            panel->setPositionPx(20.0f, 20.0f);
+            panel->setSizePx(420.0f, 90.0f);
+            panel->style().backgroundColor = Color(0, 0, 0, 160);
+
+            auto label = std::make_unique<UI::UILabel>();
+            label->setPositionPx(30.0f, 30.0f);
+            label->setText("UI Phase 1: Panel + Label");
+            label->style().textColor  = Color::White;
+            label->style().textSizePx = 18;
+#if defined(_WIN32)
+            label->style().fontPath = "C:/Windows/Fonts/arial.ttf";
+#else
+            label->style().fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
+#endif
+
+            panel->addChild(std::move(label));
+            ui.root().addChild(std::move(panel));
+        }
 
         registerExampleScriptTypes();
 
