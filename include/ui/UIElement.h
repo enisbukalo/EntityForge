@@ -4,16 +4,41 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include <UIDrawList.h>
 #include <UIRect.h>
 #include <UIStyle.h>
+#include <UITheme.h>
 #include <UITransform.h>
 
 namespace UI
 {
+
+namespace detail
+{
+inline void applyOverrides(UIStyle& base, const UIStyleOverrides& overrides)
+{
+    if (overrides.backgroundColor.has_value())
+    {
+        base.backgroundColor = *overrides.backgroundColor;
+    }
+    if (overrides.textColor.has_value())
+    {
+        base.textColor = *overrides.textColor;
+    }
+    if (overrides.fontPath.has_value())
+    {
+        base.fontPath = *overrides.fontPath;
+    }
+    if (overrides.textSizePx.has_value())
+    {
+        base.textSizePx = *overrides.textSizePx;
+    }
+}
+}
 
 class UIElement
 {
@@ -157,6 +182,28 @@ public:
         return m_style;
     }
 
+    // Phase 5: optional style overrides (merged with theme).
+    UIStyleOverrides& styleOverrides()
+    {
+        return m_styleOverrides;
+    }
+    const UIStyleOverrides& styleOverrides() const
+    {
+        return m_styleOverrides;
+    }
+
+    void setStyleClass(std::string styleClass)
+    {
+        m_styleClass = std::move(styleClass);
+    }
+    const std::string& styleClass() const
+    {
+        return m_styleClass;
+    }
+
+    UIStyle resolveStyle(const UITheme* theme) const;
+    UIStyle resolveStyleForClass(const UITheme* theme, const std::string& styleClass) const;
+
     // Layout pass: compute this element's rect in absolute pixel space.
     void layout(const UIRect& parentRectPx) const
     {
@@ -247,18 +294,23 @@ public:
 
     void render(UIDrawList& drawList) const
     {
+        render(drawList, nullptr);
+    }
+
+    void render(UIDrawList& drawList, const UITheme* theme) const
+    {
         if (!m_visible)
         {
             return;
         }
 
-        onRender(drawList);
+        onRender(drawList, theme);
 
         for (const auto& child : m_children)
         {
             if (child)
             {
-                child->render(drawList);
+                child->render(drawList, theme);
             }
         }
     }
@@ -297,9 +349,10 @@ public:
     }
 
 protected:
-    virtual void onRender(UIDrawList& drawList) const
+    virtual void onRender(UIDrawList& drawList, const UITheme* theme) const
     {
         (void)drawList;
+        (void)theme;
     }
 
     // Phase 4: container widgets override this to compute child rectangles.
@@ -372,6 +425,8 @@ private:
 
     UITransform                             m_transform;
     UIStyle                                 m_style;
+    std::string                             m_styleClass;
+    UIStyleOverrides                        m_styleOverrides;
     bool                                    m_visible        = true;
     bool                                    m_hitTestVisible = false;
     bool                                    m_interactable   = true;
@@ -383,5 +438,27 @@ private:
     mutable UIRect m_lastParentRectPx;
     mutable UIRect m_computedRectPx;
 };
+
+inline UIStyle UIElement::resolveStyle(const UITheme* theme) const
+{
+    return resolveStyleForClass(theme, m_styleClass);
+}
+
+inline UIStyle UIElement::resolveStyleForClass(const UITheme* theme, const std::string& styleClass) const
+{
+    UIStyle resolved = m_style;
+
+    if (theme != nullptr && !styleClass.empty())
+    {
+        const auto themed = theme->tryGetStyle(styleClass);
+        if (themed.has_value())
+        {
+            resolved = *themed;
+        }
+    }
+
+    detail::applyOverrides(resolved, m_styleOverrides);
+    return resolved;
+}
 
 }  // namespace UI

@@ -9,6 +9,8 @@
 
 namespace UI
 {
+class UITheme;
+
 class UIContext
 {
 public:
@@ -31,6 +33,16 @@ public:
     void layout(const UIRect& viewportRectPx) const
     {
         m_root->layout(viewportRectPx);
+    }
+
+    // Phase 5: theme binding (lifetime owned externally).
+    void setTheme(const UITheme* theme)
+    {
+        m_theme = theme;
+    }
+    const UITheme* theme() const
+    {
+        return m_theme;
     }
 
     // Phase 3: store viewport so input can run a layout pass before hit-testing.
@@ -156,6 +168,7 @@ private:
     }
 
     std::unique_ptr<UIElement> m_root;
+    const UITheme*             m_theme = nullptr;
 
     mutable bool   m_hasViewportRectPx = false;
     mutable UIRect m_viewportRectPx;

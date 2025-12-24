@@ -8,9 +8,10 @@ namespace UI
 class UIPanel final : public UIElement
 {
 protected:
-    void onRender(UIDrawList& drawList) const override
+    void onRender(UIDrawList& drawList, const UITheme* theme) const override
     {
-        drawList.addRect(rectPx(), style().backgroundColor, transform().z);
+        const UIStyle s = resolveStyle(theme);
+        drawList.addRect(rectPx(), s.backgroundColor, transform().z);
     }
 };
 

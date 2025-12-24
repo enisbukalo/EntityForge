@@ -88,7 +88,7 @@ void UIRenderer::render(const UIContext& context, Systems::SRenderer& renderer)
     context.layout(viewportRectPx);
 
     UIDrawList drawList;
-    context.root().render(drawList);
+    context.root().render(drawList, context.theme());
 
     std::vector<UIDrawCommand> commands = drawList.commands();
     std::stable_sort(commands.begin(),

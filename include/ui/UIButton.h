@@ -4,6 +4,7 @@
 #include <string>
 
 #include <UIElement.h>
+#include <UITheme.h>
 
 namespace UI
 {
@@ -55,14 +56,16 @@ public:
     }
 
 protected:
-    void onRender(UIDrawList& drawList) const override
+    void onRender(UIDrawList& drawList, const UITheme* theme) const override
     {
+        const UIStyle s = resolveVisualStyle(theme);
+
         // Minimal visuals: rect background + label text.
-        drawList.addRect(rectPx(), style().backgroundColor, transform().z);
+        drawList.addRect(rectPx(), s.backgroundColor, transform().z);
 
         const UIRect r = rectPx();
         const Vec2   pos{r.x, r.y};
-        drawList.addText(pos, m_text, style().textColor, style().fontPath, style().textSizePx, transform().z);
+        drawList.addText(pos, m_text, s.textColor, s.fontPath, s.textSizePx, transform().z);
     }
 
     void onHoverChanged(bool hovered) override
@@ -97,6 +100,39 @@ protected:
     }
 
 private:
+    UIStyle resolveVisualStyle(const UITheme* theme) const
+    {
+        const std::string& base = styleClass();
+        if (theme == nullptr || base.empty())
+        {
+            return resolveStyle(theme);
+        }
+
+        std::string stateClass;
+        switch (m_state)
+        {
+            case State::Disabled:
+                stateClass = base + ".disabled";
+                break;
+            case State::Pressed:
+                stateClass = base + ".pressed";
+                break;
+            case State::Hovered:
+                stateClass = base + ".hovered";
+                break;
+            case State::Normal:
+            default:
+                break;
+        }
+
+        if (!stateClass.empty() && theme->tryGetStyle(stateClass).has_value())
+        {
+            return resolveStyleForClass(theme, stateClass);
+        }
+
+        return resolveStyleForClass(theme, base);
+    }
+
     void updateVisualState()
     {
         if (!m_enabled)

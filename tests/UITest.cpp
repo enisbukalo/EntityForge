@@ -10,6 +10,7 @@
 #include <UILabel.h>
 #include <UIPanel.h>
 #include <UIVerticalLayout.h>
+#include <UITheme.h>
 
 TEST(UIPhase1, PanelEmitsRectCommand)
 {
@@ -37,6 +38,128 @@ TEST(UIPhase1, PanelEmitsRectCommand)
     EXPECT_EQ(r.color, Color(1, 2, 3, 4));
 }
 
+TEST(UIPhase5, ThemeIsOptionalAndLocalStyleWorks)
+{
+    UI::UIPanel panel;
+    panel.setPositionPx(10.0f, 20.0f);
+    panel.setSizePx(30.0f, 40.0f);
+    panel.style().backgroundColor = Color(9, 8, 7, 6);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    UI::UIDrawList list;
+    panel.render(list, nullptr);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+    const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+    EXPECT_EQ(r.color, Color(9, 8, 7, 6));
+}
+
+TEST(UIPhase5, ThemeDefaultsApplyAndOverridesWin)
+{
+    UI::UITheme theme;
+
+    UI::UIStyle themed;
+    themed.backgroundColor = Color(1, 2, 3, 4);
+    themed.textColor       = Color(5, 6, 7, 8);
+    themed.fontPath        = "ThemeFont.ttf";
+    themed.textSizePx      = 19;
+    theme.setStyle("menu.panel", themed);
+
+    UI::UIPanel panel;
+    panel.setStyleClass("menu.panel");
+    // Local style exists but should not be required/used to override a theme.
+    panel.style().backgroundColor = Color(50, 50, 50, 50);
+    // Explicit overrides should win.
+    panel.styleOverrides().backgroundColor = Color(9, 9, 9, 9);
+
+    panel.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    UI::UIDrawList list;
+    panel.render(list, &theme);
+
+    ASSERT_EQ(list.commands().size(), 1u);
+    ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+    const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+    EXPECT_EQ(r.color, Color(9, 9, 9, 9));
+}
+
+TEST(UIPhase5, ButtonUsesThemeStateClassesWithFallback)
+{
+    UI::UITheme theme;
+
+    UI::UIStyle base;
+    base.backgroundColor = Color(10, 0, 0, 255);
+    base.textColor       = Color(255, 255, 255, 255);
+    base.textSizePx      = 16;
+    theme.setStyle("menu.button", base);
+
+    UI::UIStyle hovered;
+    hovered.backgroundColor = Color(0, 10, 0, 255);
+    hovered.textColor       = base.textColor;
+    hovered.textSizePx      = base.textSizePx;
+    theme.setStyle("menu.button.hovered", hovered);
+
+    UI::UIStyle pressed;
+    pressed.backgroundColor = Color(0, 0, 10, 255);
+    pressed.textColor       = base.textColor;
+    pressed.textSizePx      = base.textSizePx;
+    theme.setStyle("menu.button.pressed", pressed);
+
+    // Intentionally omit .disabled to test fallback to base.
+
+    UI::UIButton button;
+    button.setStyleClass("menu.button");
+    button.setPositionPx(0.0f, 0.0f);
+    button.setSizePx(10.0f, 10.0f);
+    button.setText("B");
+
+    button.layout(UI::UIRect{0.0f, 0.0f, 100.0f, 100.0f});
+
+    // Normal
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, base.backgroundColor);
+    }
+
+    // Hovered
+    button.notifyHoverChanged(true);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, hovered.backgroundColor);
+    }
+
+    // Pressed
+    button.notifyActiveChanged(true);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, pressed.backgroundColor);
+    }
+
+    // Disabled: falls back to base since theme has no .disabled.
+    button.setEnabled(false);
+    {
+        UI::UIDrawList list;
+        button.render(list, &theme);
+        ASSERT_GE(list.commands().size(), 1u);
+        ASSERT_TRUE(std::holds_alternative<UI::UIDrawRect>(list.commands()[0].payload));
+        const auto& r = std::get<UI::UIDrawRect>(list.commands()[0].payload);
+        EXPECT_EQ(r.color, base.backgroundColor);
+    }
+}
 TEST(UIPhase1, LabelEmitsTextCommand)
 {
     UI::UILabel label;
