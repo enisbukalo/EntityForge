@@ -9,10 +9,12 @@ NC='\033[0m' # No Color
 # Default values
 BUILD_TYPE="Release"
 BUILD_SHARED="ON"
-BUILD_DIR="build_windows"
 CLEAN_BUILD=false
 TOOLCHAIN_FILE="cmake/toolchain-mingw64.cmake"
-INSTALL_PREFIX="./package_windows"
+
+# By default, keep Debug/Release packages side-by-side.
+# You can override with -i/--install-prefix.
+INSTALL_PREFIX=""
 
 # Help message
 usage() {
@@ -54,6 +56,12 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+# Default build/install locations (per-config) unless the user overrides -i.
+BUILD_DIR="build_windows_${BUILD_TYPE}"
+if [ -z "${INSTALL_PREFIX}" ]; then
+    INSTALL_PREFIX="./package_windows/${BUILD_TYPE}"
+fi
 
 # Check if CMakeLists.txt exists
 if [ ! -f "CMakeLists.txt" ]; then

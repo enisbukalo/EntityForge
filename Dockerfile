@@ -80,21 +80,21 @@ RUN set -eux; \
         'set -euo pipefail' \
         '' \
         'cd /app' \
-        'exec ./build_tools/build.sh --linux' \
+        'exec ./build_tools/build.sh --linux "$@"' \
         > /usr/local/bin/linux-build-test; \
     printf '%s\n' \
         '#!/usr/bin/env bash' \
         'set -euo pipefail' \
         '' \
         'cd /app' \
-        'exec ./build_tools/build.sh --linux --coverage' \
+        'exec ./build_tools/build.sh --linux --coverage "$@"' \
         > /usr/local/bin/linux-coverage; \
     printf '%s\n' \
         '#!/usr/bin/env bash' \
         'set -euo pipefail' \
         '' \
         'cd /app' \
-        'exec ./build_tools/build.sh --windows' \
+        'exec ./build_tools/build.sh --windows "$@"' \
         > /usr/local/bin/windows-package; \
     printf '%s\n' \
         '#!/usr/bin/env bash' \
