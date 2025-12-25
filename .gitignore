@@ -6,6 +6,10 @@ GameEngine-Windows-Release/
 build*/
 package*/
 deps*/
+
+# Keep tracked helper scripts (build*/ would otherwise ignore build_tools/)
+!build_tools/
+!build_tools/**
 out/
 CMakeFiles/
 Debug/
