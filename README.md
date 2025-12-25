@@ -1,5 +1,7 @@
 # GameEngine
 
+[![CI](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml)
+
 A modern C++ 2D game engine built with SFML, featuring an Entity Component System (ECS) architecture.
 
 This README is intentionally **high level**; the detailed engine reference lives in the GitHub Wiki.
