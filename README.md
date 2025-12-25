@@ -58,10 +58,6 @@ Commands:
 - `-n, --no-tests` (Linux only)
 - `-g, --coverage` (Linux only)
 
-### Example project
-
-The `Example/` project includes a script that builds/copies the engine package into the example.
-
 ## Public API entry points
 
 Most users interact with the engine through `GameEngine`:
@@ -87,46 +83,12 @@ The project is organized with:
 - `include/` - Public headers for entities, components, systems, and utilities
 - `src/` - Implementation source files
 - `tests/` - Unit tests
-- `Example/` - Example game project
 - `build_tools/` - Build scripts for different platforms
 
 ## Rebuilding Docker Image For GHCR
 ```bash
 GHCR_TOKEN=... bash build_tools/push_ghcr_image.sh
 ```
-
-## Audio Attribution
-
-Music tracks used in this project are provided under royalty-free licenses and require attribution:
-
-- **Sway** by Yunior Arronte  
-  License: Royalty Free Music (Free with Attribution)  
-  Source: [Download Link - requires attribution text from site]  
-  Description: Gentle Lofi featuring piano, percussion and drums
-
-- **Rainy Day** by Yunior Arronte  
-  License: Royalty Free Music (Free with Attribution)  
-  Source: [Download Link - requires attribution text from site]  
-  Streaming: [Spotify](https://open.spotify.com/track/3qN47D55JWf14GQIMEDT1d) | [Apple Music](https://music.apple.com/us/album/rainy-day-single/1735587688) | [YouTube Music](https://music.youtube.com/watch?v=ZFSkcUDWlhl) | [Amazon Music](https://music.amazon.in/albums/B0CXV388LS) | [Deezer](https://deezer.page.link/K2QkQBGPpoPWnCve9)  
-  Description: Lo-fi Jazz featuring jazzy piano, calming drums and bass
-
-- **Thai motor boat** by jonny4c (Freesound)  
-  License: Pixabay Content License (Free, No Attribution Required)  
-  Source: https://pixabay.com/sound-effects/  
-  Description: Transportation, Island, Motorboat sound effect
-
-**Pixabay License Notes (Thai motor boat):**
-- ✅ Free to use without attribution (attribution appreciated but not required)
-- ✅ Can be modified or adapted
-- ❌ Cannot sell or distribute as standalone content
-- ❌ Cannot use in immoral or illegal ways
-- ❌ Cannot use as part of trademarks or business names
-
-**Royalty Free Music License Restrictions (Sway & Rainy Day):**
-- ❌ No use in podcasts
-- ❌ No audiobook creation
-- ❌ No music remixing or derivative musical works
-- ✅ Free to use in games and videos with attribution
 
 ## Contributing
 Contributions are welcome! Please feel free to submit pull requests.
