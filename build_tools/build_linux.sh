@@ -9,11 +9,13 @@ NC='\033[0m' # No Color
 # Default values
 BUILD_TYPE="Debug"
 BUILD_SHARED="OFF"
-BUILD_DIR="build_linux"
 RUN_TESTS=true
 CLEAN_BUILD=false
-INSTALL_PREFIX="./package_linux"
 RUN_COVERAGE=false
+
+# By default, keep Debug/Release packages side-by-side.
+# You can override with -i/--install-prefix.
+INSTALL_PREFIX=""
 
 generate_coverage_report() {
     # Coverage mode must run tests; test failures must fail the build.
@@ -158,6 +160,12 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+# Default build/install locations (per-config) unless the user overrides -i.
+BUILD_DIR="build_linux_${BUILD_TYPE}"
+if [ -z "${INSTALL_PREFIX}" ]; then
+    INSTALL_PREFIX="./package_linux/${BUILD_TYPE}"
+fi
 
 # If coverage is requested, run tests in the coverage build (once), not the normal build.
 NORMAL_BUILD_RUN_TESTS=$RUN_TESTS

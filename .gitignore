@@ -3,14 +3,13 @@ GameEngine-Windows-Debug/
 GameEngine-Windows-Release/
 
 # Build directories
-build/
-build_linux/
-build_windows/
-package_linux/
-package_windows/
-deps_cache_linux/
-deps_cache_windows/
-deps_cache_linux_coverage/
+build*/
+package*/
+deps*/
+
+# Keep tracked helper scripts (build*/ would otherwise ignore build_tools/)
+!build_tools/
+!build_tools/**
 out/
 CMakeFiles/
 Debug/

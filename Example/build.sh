@@ -60,7 +60,7 @@ if [[ "$BUILD_TYPE" != "Debug" && "$BUILD_TYPE" != "Release" ]]; then
 fi
 
 # Set GameEngine directory based on build type
-PARENT_PACKAGE_DIR="../package_windows"
+PARENT_PACKAGE_DIR="../package_windows/${BUILD_TYPE}"
 
 # Check if CMakeLists.txt exists
 if [ ! -f "CMakeLists.txt" ]; then
@@ -69,13 +69,18 @@ if [ ! -f "CMakeLists.txt" ]; then
     exit 1
 fi
 
-# Always use local build from parent directory
+# Backwards-compatible fallback to the legacy flat folder.
 if [ ! -d "$PARENT_PACKAGE_DIR" ]; then
-    echo -e "${RED}Error: GameEngine library not found at $PARENT_PACKAGE_DIR${NC}"
-    echo ""
-    echo "Please build locally first:"
-    echo "  cd .. && ./build_tools/build.sh --windows --type $BUILD_TYPE"
-    exit 1
+    LEGACY_PARENT_PACKAGE_DIR="../package_windows"
+    if [ -d "$LEGACY_PARENT_PACKAGE_DIR" ]; then
+        PARENT_PACKAGE_DIR="$LEGACY_PARENT_PACKAGE_DIR"
+    else
+        echo -e "${RED}Error: GameEngine library not found at $PARENT_PACKAGE_DIR${NC}"
+        echo ""
+        echo "Please build locally first:"
+        echo "  cd .. && ./build_tools/build.sh --windows --type $BUILD_TYPE"
+        exit 1
+    fi
 fi
 
 echo -e "${GREEN}Using local build from $PARENT_PACKAGE_DIR${NC}"
@@ -129,6 +134,15 @@ cmake --build ${BUILD_DIR} --config $BUILD_TYPE -j8 || {
 echo -e "${GREEN}Copying GameEngine runtime DLLs...${NC}"
 if [ -d "${GAMEENGINE_DIR}/bin" ]; then
     cp -f "${GAMEENGINE_DIR}/bin/"*.dll "${BUILD_DIR}/" 2>/dev/null || true
+fi
+
+# Copy Example assets next to the executable so relative paths like
+#   assets/textures/boat.png
+# work even when running from the build folder.
+echo -e "${GREEN}Copying Example assets...${NC}"
+if [ -d "${SCRIPT_DIR}/assets" ]; then
+    rm -rf "${BUILD_DIR}/assets" 2>/dev/null || true
+    cp -r "${SCRIPT_DIR}/assets" "${BUILD_DIR}/assets"
 fi
 
 # Flatten build directory: move everything from bin to build root and clean up

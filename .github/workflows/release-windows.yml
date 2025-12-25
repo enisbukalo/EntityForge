@@ -1,0 +1,98 @@
+name: Release (Windows Package)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  windows-package:
+    name: Build Windows Release package
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: ghcr.io/enisbukalo/2d-game-engine:latest
+      credentials:
+        username: enisbukalo
+        password: ${{ secrets.GHCR_PAT }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark repo as safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Cache Dependencies (Windows)
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps_cache_windows
+            build_windows_Release/_deps
+          key: ${{ runner.os }}-windows-release-deps-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-windows-release-deps-
+            ${{ runner.os }}-deps-
+
+      - name: Build Windows package (Release)
+        run: |
+          chmod +x build_tools/build.sh build_tools/build_windows.sh
+          ./build_tools/build.sh --windows --clean --type Release
+
+      - name: Bundle MinGW runtime DLLs
+        run: |
+          set -euo pipefail
+
+          bin_dir="package_windows/Release/bin"
+          mkdir -p "$bin_dir"
+
+          copy_dll() {
+            local dll="$1"
+            local dll_path
+            dll_path="$(x86_64-w64-mingw32-g++ -print-file-name="${dll}")"
+
+            if [ -f "$dll_path" ]; then
+              cp -f "$dll_path" "$bin_dir/"
+              echo "Copied $dll -> $bin_dir/"
+            else
+              echo "WARNING: Could not locate ${dll} via toolchain (got: ${dll_path})"
+            fi
+          }
+
+          copy_dll "libgcc_s_seh-1.dll"
+          copy_dll "libstdc++-6.dll"
+          copy_dll "libwinpthread-1.dll"
+
+      - name: Create release zip
+        run: |
+          set -euo pipefail
+
+          if ! command -v zip >/dev/null 2>&1; then
+            echo "zip not found; installing..."
+            apt-get update
+            apt-get install -y zip
+          fi
+
+          tag="${GITHUB_REF_NAME}"
+          root="GameEngine-Windows-${tag}"
+
+          rm -rf dist
+          mkdir -p "dist/${root}"
+
+          cp -a package_windows/Release/. "dist/${root}/"
+
+          (cd dist && zip -r "${root}.zip" "${root}")
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/GameEngine-Windows-${{ github.ref_name }}.zip

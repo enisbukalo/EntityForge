@@ -45,9 +45,11 @@ jobs:
         with:
           path: |
             deps_cache_linux
-            build_linux/_deps
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
+            build_linux_${{ inputs.build_type }}/_deps
+            build_linux_coverage/_deps
+          key: ${{ runner.os }}-${{ inputs.build_type }}-deps-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
+            ${{ runner.os }}-${{ inputs.build_type }}-deps-
             ${{ runner.os }}-deps-
 
       - name: Lint (clang-format)

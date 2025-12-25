@@ -1,5 +1,7 @@
 # GameEngine
 
+[![CI](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml)
+
 A modern C++ 2D game engine built with SFML, featuring an Entity Component System (ECS) architecture.
 
 This README is intentionally **high level**; the detailed engine reference lives in the GitHub Wiki.
@@ -28,17 +30,6 @@ This README is intentionally **high level**; the detailed engine reference lives
   - Rendering (SFML): pixels, **Y-down**.
   - Common scale: **100 pixels = 1 meter**.
 
-## EventBus policy (recommended)
-
-This engine includes a world-owned, staged `EventBus` available via `World::events()`.
-
-- **Prefer `World::events()`** for cross-system notifications and decoupled messaging.
-- **Dispatch is staged**: events are delivered only when the engine calls `EventBus::pump()`.
-  - `EventStage::PreFlush` is pumped immediately before `World::flushCommandBuffer()`.
-  - `EventStage::PostFlush` is pumped at the end of `GameEngine::update()`.
-- **ECS safety rule**: handlers that need structural changes must use `World::queue*` APIs (do not mutate stores during iteration).
-- Legacy per-system subscription APIs (e.g. `Systems::SInput::subscribe`) remain temporarily for compatibility but are considered deprecated.
-
 ## Building
 
 The recommended workflow is Docker (Linux native build + Windows cross-compile).
@@ -51,17 +42,12 @@ Prereqs:
 
 Commands:
 - Build the dev image: `docker compose up -d --build`
-
-Convenience commands (available inside the container):
-- Linux build (with tests): `docker compose run --rm dev linux-build-test`
-- Linux build (with coverage): `docker compose run --rm dev linux-coverage`
-- Windows cross-compilation/package: `docker compose run --rm dev windows-package`
-- Format + static analysis: `docker compose run --rm dev format-and-analysis`
-- Format only: `docker compose run --rm dev format-code`
-- Static analysis only: `docker compose run --rm dev static-analysis`
-
-Notes:
-- The dev image is a **toolchain** image; your repo is mounted at `/app` via Docker Compose.
+- Linux build (with tests): `docker compose exec dev ./build_tools/build.sh --linux`
+- Linux build (no tests): `docker compose exec dev ./build_tools/build.sh --linux --no-tests`
+- Clean build (Linux): `docker compose exec dev ./build_tools/build.sh --linux --clean`
+- Windows cross-compilation: `docker compose exec dev ./build_tools/build.sh --windows`
+- Build both: `docker compose exec dev ./build_tools/build.sh --all`
+- Enter dev container: `docker compose exec dev /bin/bash`
 
 ### Build options
 
@@ -103,6 +89,11 @@ The project is organized with:
 - `tests/` - Unit tests
 - `Example/` - Example game project
 - `build_tools/` - Build scripts for different platforms
+
+## Rebuilding Docker Image For GHCR
+```bash
+GHCR_TOKEN=... bash build_tools/push_ghcr_image.sh
+```
 
 ## Audio Attribution
 

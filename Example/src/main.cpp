@@ -12,11 +12,20 @@
 #include <ObjectiveRegistry.h>
 
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <memory>
 #include <vector>
+
+#include <StackTrace.h>
+
+#ifdef _WIN32
+// clang-format off
+#include <windows.h>
+// clang-format on
+#endif
 
 #include <UIContext.h>
 
@@ -59,6 +68,49 @@ static void registerExampleScriptTypes()
     (void)registry.registerScript<Example::BarrelBehaviour>(Example::BarrelBehaviour::kScriptName);
 }
 
+static void installCrashHandlers()
+{
+    std::signal(SIGABRT,
+                [](int)
+                {
+                    if (Logger::isInitialized())
+                    {
+                        LOG_ERROR_CONSOLE("FATAL: SIGABRT");
+                        LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
+                        Logger::flush();
+                    }
+                    std::abort();
+                });
+
+    std::signal(SIGSEGV,
+                [](int)
+                {
+                    if (Logger::isInitialized())
+                    {
+                        LOG_ERROR_CONSOLE("FATAL: SIGSEGV (segmentation fault / access violation)");
+                        LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
+                        Logger::flush();
+                    }
+                    std::abort();
+                });
+
+#ifdef _WIN32
+    // Best-effort logging for Windows access violations (MinGW builds often just hard-exit otherwise).
+    SetUnhandledExceptionFilter(
+        [](EXCEPTION_POINTERS* info) -> LONG
+        {
+            const DWORD code = info && info->ExceptionRecord ? info->ExceptionRecord->ExceptionCode : 0;
+            if (Logger::isInitialized())
+            {
+                LOG_ERROR_CONSOLE("FATAL: Unhandled Windows exception code=0x{:08X}", static_cast<unsigned>(code));
+                LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
+                Logger::flush();
+            }
+            return EXCEPTION_EXECUTE_HANDLER;
+        });
+#endif
+}
+
 int main()
 {
     try
@@ -76,6 +128,7 @@ int main()
             });
 
         Logger::initialize("logs");
+        installCrashHandlers();
         LOG_INFO_CONSOLE("Starting game initialization...");
 
         WindowConfig windowConfig;
@@ -107,11 +160,25 @@ int main()
         LOG_INFO_CONSOLE("Creating entities...");
 
         World& world = engine.world();
+        LOG_INFO_CONSOLE("Spawn: AudioManager (begin)");
         (void)Example::spawnAudioManager(world);
+        LOG_INFO_CONSOLE("Spawn: AudioManager (ok)");
+
+        LOG_INFO_CONSOLE("Spawn: Boat (begin)");
         const Entity boat = Example::spawnBoat(world);
+        LOG_INFO_CONSOLE("Spawn: Boat (ok) index={} gen={}", boat.index, boat.generation);
+
+        LOG_INFO_CONSOLE("Spawn: MainCamera (begin)");
         (void)Example::spawnMainCamera(world, boat, PLAYFIELD_HEIGHT_METERS);
+        LOG_INFO_CONSOLE("Spawn: MainCamera (ok)");
+
+        LOG_INFO_CONSOLE("Spawn: CameraController (begin)");
         (void)Example::spawnCameraController(world, "Main");
+        LOG_INFO_CONSOLE("Spawn: CameraController (ok)");
+
+        LOG_INFO_CONSOLE("Spawn: BarrelSpawner (begin)");
         (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
+        LOG_INFO_CONSOLE("Spawn: BarrelSpawner (ok)");
 
         // --- Objectives demo (data-driven) ---
         Entity                   objectiveState;
