@@ -1,8 +1,8 @@
 #include "FileUtilities.h"
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <cstdint>
 #include <filesystem>
 #include <stdexcept>
 #include <vector>
@@ -25,7 +25,7 @@ namespace
 
 [[nodiscard]] std::string openErrorMessage(const std::filesystem::path& path)
 {
-    std::string msg = "Could not open file: " + path.string();
+    std::string       msg = "Could not open file: " + path.string();
     const std::string err = errnoString();
     if (!err.empty())
     {
@@ -73,7 +73,7 @@ struct FileCloser
     buffer.reserve(16 * 1024);
 
     std::uint8_t tmp[64 * 1024];
-    size_t total = 0;
+    size_t       total = 0;
     while (true)
     {
         const size_t n = std::fread(tmp, 1, sizeof(tmp), file.get());

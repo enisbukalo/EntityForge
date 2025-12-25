@@ -70,31 +70,29 @@ static void registerExampleScriptTypes()
 
 static void installCrashHandlers()
 {
-    std::signal(
-        SIGABRT,
-        [](int)
-        {
-            if (Logger::isInitialized())
-            {
-                LOG_ERROR_CONSOLE("FATAL: SIGABRT");
-                LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
-                Logger::flush();
-            }
-            std::abort();
-        });
+    std::signal(SIGABRT,
+                [](int)
+                {
+                    if (Logger::isInitialized())
+                    {
+                        LOG_ERROR_CONSOLE("FATAL: SIGABRT");
+                        LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
+                        Logger::flush();
+                    }
+                    std::abort();
+                });
 
-    std::signal(
-        SIGSEGV,
-        [](int)
-        {
-            if (Logger::isInitialized())
-            {
-                LOG_ERROR_CONSOLE("FATAL: SIGSEGV (segmentation fault / access violation)");
-                LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
-                Logger::flush();
-            }
-            std::abort();
-        });
+    std::signal(SIGSEGV,
+                [](int)
+                {
+                    if (Logger::isInitialized())
+                    {
+                        LOG_ERROR_CONSOLE("FATAL: SIGSEGV (segmentation fault / access violation)");
+                        LOG_ERROR_CONSOLE("Stack trace:\n{}", Internal::StackTrace::capture(0, 64));
+                        Logger::flush();
+                    }
+                    std::abort();
+                });
 
 #ifdef _WIN32
     // Best-effort logging for Windows access violations (MinGW builds often just hard-exit otherwise).
@@ -130,7 +128,7 @@ int main()
             });
 
         Logger::initialize("logs");
-    installCrashHandlers();
+        installCrashHandlers();
         LOG_INFO_CONSOLE("Starting game initialization...");
 
         WindowConfig windowConfig;
@@ -179,13 +177,7 @@ int main()
         LOG_INFO_CONSOLE("Spawn: CameraController (ok)");
 
         LOG_INFO_CONSOLE("Spawn: BarrelSpawner (begin)");
-        (void)Example::spawnBarrelSpawner(
-            world,
-            -PLAYFIELD_WIDTH_METERS,
-            PLAYFIELD_WIDTH_METERS,
-            -PLAYFIELD_HEIGHT_METERS,
-            PLAYFIELD_HEIGHT_METERS,
-            DEFAULT_BARREL_COUNT);
+        (void)Example::spawnBarrelSpawner(world, -PLAYFIELD_WIDTH_METERS, PLAYFIELD_WIDTH_METERS, -PLAYFIELD_HEIGHT_METERS, PLAYFIELD_HEIGHT_METERS, DEFAULT_BARREL_COUNT);
         LOG_INFO_CONSOLE("Spawn: BarrelSpawner (ok)");
 
         // --- Objectives demo (data-driven) ---

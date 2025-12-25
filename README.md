@@ -39,12 +39,13 @@ Prereqs:
 - Docker Compose
 
 Commands:
-- Linux build (with tests): `docker-compose exec dev ./build_tools/build.sh --linux`
-- Linux build (no tests): `docker-compose exec dev ./build_tools/build.sh --linux --no-tests`
-- Clean build (Linux): `docker-compose exec dev ./build_tools/build.sh --linux --clean`
-- Windows cross-compilation: `docker-compose exec dev ./build_tools/build.sh --windows`
-- Build both: `docker-compose exec dev ./build_tools/build.sh --all`
-- Enter dev container: `docker-compose exec dev /bin/bash`
+- Build the dev image: `docker compose up -d --build`
+- Linux build (with tests): `docker compose exec dev ./build_tools/build.sh --linux`
+- Linux build (no tests): `docker compose exec dev ./build_tools/build.sh --linux --no-tests`
+- Clean build (Linux): `docker compose exec dev ./build_tools/build.sh --linux --clean`
+- Windows cross-compilation: `docker compose exec dev ./build_tools/build.sh --windows`
+- Build both: `docker compose exec dev ./build_tools/build.sh --all`
+- Enter dev container: `docker compose exec dev /bin/bash`
 
 ### Build options
 
@@ -72,9 +73,9 @@ For details (components, systems, scripting lifecycle), see the Wiki links above
 
 - C++17 or later
 - CMake 3.28+
-- SFML 2.6.x
+- SFML 3.0.2+
 - Box2D v3.1.1
-- Dear ImGui 1.88 + ImGui-SFML 2.6
+- Dear ImGui v1.91.9b + ImGui-SFML v3.0
 - GoogleTest (tests)
 - nlohmann/json v3.11.3
 
@@ -86,6 +87,11 @@ The project is organized with:
 - `tests/` - Unit tests
 - `Example/` - Example game project
 - `build_tools/` - Build scripts for different platforms
+
+## Rebuilding Docker Image For GHCR
+```bash
+GHCR_TOKEN=... bash build_tools/push_ghcr_image.sh
+```
 
 ## Audio Attribution
 
@@ -102,15 +108,7 @@ Music tracks used in this project are provided under royalty-free licenses and r
   Streaming: [Spotify](https://open.spotify.com/track/3qN47D55JWf14GQIMEDT1d) | [Apple Music](https://music.apple.com/us/album/rainy-day-single/1735587688) | [YouTube Music](https://music.youtube.com/watch?v=ZFSkcUDWlhl) | [Amazon Music](https://music.amazon.in/albums/B0CXV388LS) | [Deezer](https://deezer.page.link/K2QkQBGPpoPWnCve9)  
   Description: Lo-fi Jazz featuring jazzy piano, calming drums and bass
 
--
-
-## Rebuilding Docker Image For GHCR
-```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u enisbukalo --password-stdin
-IMAGE="ghcr.io/enisbukalo/2d-game-engine:latest"
-docker build -t "$IMAGE" .
-docker push "$IMAGE"
-``` **Thai motor boat** by jonny4c (Freesound)  
+- **Thai motor boat** by jonny4c (Freesound)  
   License: Pixabay Content License (Free, No Attribution Required)  
   Source: https://pixabay.com/sound-effects/  
   Description: Transportation, Island, Motorboat sound effect
