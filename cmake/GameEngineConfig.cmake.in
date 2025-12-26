@@ -2,6 +2,11 @@
 
 include(CMakeFindDependencyMacro)
 
+# Prefer dependencies bundled inside this package.
+# This enables a fully self-contained SDK zip where consumers only need to
+# point CMake at the GameEngine package directory.
+list(PREPEND CMAKE_PREFIX_PATH "${PACKAGE_PREFIX_DIR}" "${PACKAGE_PREFIX_DIR}/lib/cmake")
+
 # Find dependencies
 find_dependency(Threads)
 find_dependency(spdlog)

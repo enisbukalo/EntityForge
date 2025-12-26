@@ -115,6 +115,20 @@ cmake --install ${BUILD_DIR} --prefix "$INSTALL_PREFIX" || {
     exit 1
 }
 
+# Bundle SFML into the package so consumers don't need to install it separately.
+# This is expected to run inside the provided Docker image where SFML_WINDOWS_ROOT
+# points at a MinGW-built SFML install that includes SFMLConfig.cmake.
+if [ -n "${SFML_WINDOWS_ROOT:-}" ] && [ -d "${SFML_WINDOWS_ROOT}" ]; then
+    echo -e "${GREEN}Bundling SFML from ${SFML_WINDOWS_ROOT} into ${INSTALL_PREFIX}...${NC}"
+    # Copy the SFML install tree into the same prefix so find_dependency(SFML) can
+    # locate SFMLConfig.cmake via the package prefix.
+    cp -R "${SFML_WINDOWS_ROOT}/include" "${INSTALL_PREFIX}/" 2>/dev/null || true
+    cp -R "${SFML_WINDOWS_ROOT}/lib" "${INSTALL_PREFIX}/" 2>/dev/null || true
+    cp -R "${SFML_WINDOWS_ROOT}/bin" "${INSTALL_PREFIX}/" 2>/dev/null || true
+else
+    echo -e "${YELLOW}SFML_WINDOWS_ROOT not set; package will require an external SFML install to configure consumers.${NC}"
+fi
+
 echo -e "${GREEN}Windows build completed successfully!${NC}"
 echo -e "${GREEN}Library installed to: ${INSTALL_PREFIX}${NC}"
 echo -e "${YELLOW}Note: Make sure to include MinGW runtime DLLs if deploying:${NC}"
