@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/enisbukalo/2d-game-engine:latest
+      image: ghcr.io/enisbukalo/entityforge:latest
       credentials:
         username: enisbukalo
         password: ${{ secrets.GHCR_PAT }}

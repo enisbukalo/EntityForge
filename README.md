@@ -1,6 +1,6 @@
-# GameEngine
+# EntityForge
 
-[![CI](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/enisbukalo/2D_Game_Engine/actions/workflows/ci.yml)
+[![CI](https://github.com/enisbukalo/EntityForge/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/enisbukalo/EntityForge/actions/workflows/ci.yml)
 
 A modern C++ 2D game engine built with SFML, featuring an Entity Component System (ECS) architecture.
 
@@ -8,12 +8,12 @@ This README is intentionally **high level**; the detailed engine reference lives
 
 ## Documentation
 
-- Wiki Home: https://github.com/enisbukalo/2D_Game_Engine/wiki
-- Getting Started: https://github.com/enisbukalo/2D_Game_Engine/wiki/Getting-Started
-- Architecture: https://github.com/enisbukalo/2D_Game_Engine/wiki/Architecture
-- Components: https://github.com/enisbukalo/2D_Game_Engine/wiki/Components
-- Systems: https://github.com/enisbukalo/2D_Game_Engine/wiki/Systems
-- API: https://github.com/enisbukalo/2D_Game_Engine/wiki/API
+- Wiki Home: https://github.com/enisbukalo/EntityForge/wiki
+- Getting Started: https://github.com/enisbukalo/EntityForge/wiki/Getting-Started
+- Architecture: https://github.com/enisbukalo/EntityForge/wiki/Architecture
+- Components: https://github.com/enisbukalo/EntityForge/wiki/Components
+- Systems: https://github.com/enisbukalo/EntityForge/wiki/Systems
+- API: https://github.com/enisbukalo/EntityForge/wiki/API
 
 ## Highlights
 

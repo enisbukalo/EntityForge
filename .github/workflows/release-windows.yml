@@ -18,7 +18,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: ghcr.io/enisbukalo/2d-game-engine:latest
+      image: ghcr.io/enisbukalo/entityforge:latest
       credentials:
         username: enisbukalo
         password: ${{ secrets.GHCR_PAT }}
@@ -82,7 +82,7 @@ jobs:
           fi
 
           tag="${GITHUB_REF_NAME}"
-          root="GameEngine-Windows-${tag}"
+          root="EntityForge-Windows-${tag}"
 
           rm -rf dist
           mkdir -p "dist/${root}"
@@ -98,4 +98,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
-            dist/GameEngine-Windows-${{ github.ref_name }}.zip
+            dist/EntityForge-Windows-${{ github.ref_name }}.zip

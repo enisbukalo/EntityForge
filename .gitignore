@@ -1,6 +1,6 @@
 # Example directory
-GameEngine-Windows-Debug/
-GameEngine-Windows-Release/
+EntityForge-Windows-Debug/
+EntityForge-Windows-Release/
 
 # Build directories
 build*/

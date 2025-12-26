@@ -8,7 +8,7 @@ set(GAMEENGINE_VERSION ${GAMEENGINE_VERSION_MAJOR}.${GAMEENGINE_VERSION_MINOR}.$
 
 project(GameEngine
     VERSION ${GAMEENGINE_VERSION}
-    DESCRIPTION "A 2D Game Engine with Entity Component System"
+    DESCRIPTION "EntityForge game engine with Entity Component System"
     LANGUAGES CXX)
 
 # Build options
